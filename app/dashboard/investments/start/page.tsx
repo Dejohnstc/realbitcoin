@@ -151,7 +151,7 @@ function StartInvestmentContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white p-6">
+    <div className="min-h-screen bg-[#0B0F19] text-white p-2">
 
       {/* HEADER */}
       <div className="flex items-center gap-4 mb-4">

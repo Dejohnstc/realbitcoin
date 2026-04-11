@@ -28,7 +28,7 @@ export default function DashboardLayout({
   const showBack = pathname !== "/dashboard";
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white px-2 pb-12">
+    <div className="min-h-screen bg-[#0B0F19] text-white px-1 pb-12">
 
       {/* 🔥 AUTO HEADER */}
       <DashboardHeader title={getTitle()} showBack={showBack} />
