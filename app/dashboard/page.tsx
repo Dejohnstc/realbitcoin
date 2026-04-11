@@ -29,22 +29,27 @@ export default function DashboardPage() {
   };
 
   const fetchBalance = async () => {
-    const token = localStorage.getItem("user_token");
-    if (!token) return;
+  const token = localStorage.getItem("user_token");
+  if (!token) return;
 
-    try {
-      const res = await fetch("/api/user", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
+  try {
+    const res = await fetch("/api/user/me", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store", // 🔥 critical
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (res.ok && data.balance !== undefined) {
-        setBalance(data.balance);
-      }
-    } catch {}
-  };
+    if (res.ok && data.user) {
+      setBalance(data.user.balance);
+
+      // 🔥 keep localStorage in sync (optional but smart)
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+  } catch (err) {
+    console.error("Balance fetch failed", err);
+  }
+};
 
   const fetchMarkets = async () => {
     try {
