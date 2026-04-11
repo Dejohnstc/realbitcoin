@@ -18,7 +18,7 @@ export default function AddEarnBonusPage() {
     setMessage("");
 
     try {
-      const token = localStorage.getItem("user_token");
+      const token = localStorage.getItem("admin_token");
 
       const res = await fetch("/api/admin/add-earn-bonus", {
         method: "POST",
