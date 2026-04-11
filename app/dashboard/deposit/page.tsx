@@ -140,7 +140,7 @@ export default function DepositPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white p-2">
+    <div className="min-h-screen bg-[#0B0F19] text-white p-6">
 
       {/* 🔙 BACK BUTTON */}
       <div className="flex items-center gap-4 mb-6">

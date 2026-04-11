@@ -41,7 +41,7 @@ export default function LiveMarketPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
+    <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-12">
 
       {/* 🔙 BACK BUTTON */}
       <button
