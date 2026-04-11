@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+
 interface Market {
   id: string;
   symbol: string;
@@ -271,6 +272,7 @@ function Card({ title, value, green = false }: CardProps) {
       >
         {value}
       </h2>
+      
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/DashboardHeader";
 import ChatWidget from "@/components/ChatWidget";
+import BottomNav from "@/components/BottomNav";
 
 export default function DashboardLayout({
   children,
@@ -11,7 +12,6 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
 
-  // ✅ DETECT PAGE TITLE
   const getTitle = () => {
     if (pathname === "/dashboard") return "RealBitcoin";
     if (pathname.includes("deposit")) return "Deposit";
@@ -24,18 +24,24 @@ export default function DashboardLayout({
     return "Dashboard";
   };
 
-  // ✅ SHOW BACK BUTTON ON ALL EXCEPT MAIN DASHBOARD
   const showBack = pathname !== "/dashboard";
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white px-1 pb-12">
+    <div className="min-h-screen bg-[#0B0F19] text-white">
 
-      {/* 🔥 AUTO HEADER */}
+      {/* HEADER */}
       <DashboardHeader title={getTitle()} showBack={showBack} />
-      <ChatWidget/>
 
       {/* PAGE CONTENT */}
-      {children}
+      <div className="px-3 pb-20">
+        {children}
+      </div>
+
+      {/* CHAT */}
+      <ChatWidget />
+
+      {/* 🔥 FIXED NAVBAR */}
+      <BottomNav />
     </div>
   );
 }

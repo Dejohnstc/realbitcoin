@@ -65,7 +65,7 @@ export async function sendWelcomeEmail(email: string): Promise<void> {
           </p>
 
           <div style="text-align:center; margin-top:25px;">
-            <a href="http://localhost:3000/dashboard/investments" 
+            <a href="http://realbitcoin.obiresoffice.com/dashboard/investments" 
                style="background:#f97316; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">
                Start Investing
             </a>
@@ -114,7 +114,7 @@ export async function sendDepositEmail(
           </p>
 
           <div style="text-align:center; margin-top:25px;">
-            <a href="http://localhost:3000/dashboard"
+            <a href="http://realbitcoin.obiresoffice.com/dashboard"
                style="background:#22c55e; color:black; padding:10px 20px; text-decoration:none; border-radius:5px;">
                Go to Dashboard
             </a>
@@ -157,7 +157,7 @@ export async function sendWithdrawEmail(
           </p>
 
           <div style="text-align:center; margin-top:25px;">
-            <a href="http://localhost:3000/dashboard"
+            <a href="http://realbitcoin.obiresoffice.com/dashboard"
                style="background:#facc15; color:black; padding:10px 20px; text-decoration:none; border-radius:5px;">
                View Dashboard
             </a>
