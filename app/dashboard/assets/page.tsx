@@ -86,11 +86,13 @@ export default function AssetsPage() {
 
   // 🔥 COIN ICONS
   const coinIcons: Record<string, string> = {
-    btc: "https://cryptoicons.org/api/icon/btc/32",
-    eth: "https://cryptoicons.org/api/icon/eth/32",
-    bnb: "https://cryptoicons.org/api/icon/bnb/32",
-    sol: "https://cryptoicons.org/api/icon/sol/32",
-  };
+  btc: "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=029",
+  eth: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=029",
+  bnb: "https://cryptologos.cc/logos/bnb-bnb-logo.png?v=029",
+  sol: "https://cryptologos.cc/logos/solana-sol-logo.png?v=029",
+  usdt: "https://cryptologos.cc/logos/tether-usdt-logo.png?v=029",
+  xrp: "https://cryptologos.cc/logos/xrp-xrp-logo.png?v=029",
+};
 
   return (
     <div className="min-h-screen bg-black text-white px-4 pt-4 pb-24">
@@ -206,7 +208,7 @@ export default function AssetsPage() {
                   "https://cryptoicons.org/api/icon/btc/32"
                 }
                 alt={m.symbol}
-                className="w-7 h-7"
+                className="w-7 h-7 object-contain"
               />
 
               <div>

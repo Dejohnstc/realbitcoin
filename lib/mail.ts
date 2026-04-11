@@ -9,20 +9,39 @@ const BASE_URL =
 // =============================
 // ✅ SEND OTP EMAIL
 // =============================
-export async function sendOTP(email: string, otp: string): Promise<void> {
+export const sendOTP = async (email: string, otp: string) => {
   try {
-    const response = await resend.emails.send({
+    await resend.emails.send({
       from: "RealBitcoin <noreply@obiresoffice.com>",
       to: email,
       subject: "Your RealBitcoin Verification Code",
-      html: `...YOUR ORIGINAL HTML (UNCHANGED)...`,
+
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2 style="color: #111;">Verify Your Account</h2>
+
+          <p>Your verification code is:</p>
+
+          <h1 style="letter-spacing: 4px; color: #2563eb;">
+            ${otp}
+          </h1>
+
+          <p>This code expires in 10 minutes.</p>
+
+          <br/>
+
+          <p style="font-size: 12px; color: gray;">
+            If you didn’t request this, ignore this email.
+          </p>
+        </div>
+      `,
     });
 
-    console.log("✅ OTP sent:", response);
+    console.log("✅ OTP email sent");
   } catch (error) {
-    console.error("❌ OTP FAILED:", error);
+    console.error("❌ OTP email error:", error);
   }
-}
+};
 
 // =============================
 // ✅ WELCOME EMAIL
