@@ -35,19 +35,27 @@ export async function GET(req: Request): Promise<NextResponse> {
       );
     }
 
-    console.log("✅ USER FETCH:", user.balance);
+    // 🔥 DEBUG (optional)
+    console.log("✅ USER FETCH:", {
+      balance: user.balance,
+      locked: user.lockedBalance,
+    });
 
     return NextResponse.json(
       {
         user: {
           name: user.name || user.email.split("@")[0],
           email: user.email,
+
           balance: user.balance,
+
+          // 🔥 ADD THIS (CRITICAL FIX)
+          lockedBalance: user.lockedBalance || 0,
+
           role: user.role,
         },
       },
       {
-        // 🔥 VERY IMPORTANT: prevent stale data
         headers: {
           "Cache-Control": "no-store",
         },

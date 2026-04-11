@@ -12,7 +12,11 @@ export interface INotifications {
 export interface IUser extends Document {
   email: string;
   password?: string;
+
   balance: number;
+
+  // 🔥 NEW
+  lockedBalance: number;
 
   role: "user" | "admin";
 
@@ -29,7 +33,6 @@ export interface IUser extends Document {
 
   isVerified: boolean;
 
-  // 🔥 ADD THIS (IMPORTANT)
   isSuspended: boolean;
 
   createdAt: Date;
@@ -58,6 +61,12 @@ const UserSchema: Schema<IUser> = new Schema(
       default: 0,
     },
 
+    // 🔥 NEW FIELD (SAFE ADD)
+    lockedBalance: {
+      type: Number,
+      default: 0,
+    },
+
     role: {
       type: String,
       enum: ["user", "admin"],
@@ -80,7 +89,6 @@ const UserSchema: Schema<IUser> = new Schema(
 
     isVerified: { type: Boolean, default: false },
 
-    // 🔥 ADD THIS (CRITICAL FOR ADMIN PANEL)
     isSuspended: { type: Boolean, default: false },
   },
   { timestamps: true }

@@ -26,12 +26,13 @@ interface Earning {
 
 export default function PortfolioPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [userBalance, setUserBalance] = useState(0); // ✅ FIX
+  const [userBalance, setUserBalance] = useState(0);
+  const [lockedBalance, setLockedBalance] = useState(0); // ✅ NEW
   const [earning, setEarning] = useState<Earning | null>(null);
 
   const router = useRouter();
 
-  // ✅ FETCH USER BALANCE (CRITICAL FIX)
+  // ✅ FETCH USER (UPDATED)
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -44,43 +45,13 @@ export default function PortfolioPage() {
         const data = await res.json();
 
         setUserBalance(data.user?.balance || 0);
+        setLockedBalance(data.user?.lockedBalance || 0); // ✅ FIX
       } catch (err) {
         console.log(err);
       }
     };
 
     loadUser();
-  }, []);
-
-  // ✅ FETCH INVESTMENTS (unchanged)
-  useEffect(() => {
-    let ignore = false;
-
-    (async () => {
-      try {
-        const token = localStorage.getItem("user_token");
-
-        const res = await fetch("/api/invest", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = await res.json();
-
-        if (ignore) return;
-
-        const invs: Investment[] = Array.isArray(data.investments)
-          ? data.investments
-          : [];
-
-        setInvestments(invs);
-      } catch (err) {
-        console.log(err);
-      }
-    })();
-
-    return () => {
-      ignore = true;
-    };
   }, []);
 
   // ✅ FETCH EARNING
@@ -104,7 +75,6 @@ export default function PortfolioPage() {
     loadEarning();
 
     const interval = setInterval(loadEarning, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -130,13 +100,13 @@ export default function PortfolioPage() {
     }
   };
 
-  // ✅ FIXED BALANCE (NO BUG)
-  
-const displayBalance =
-  userBalance + (earning?.earnedSoFar || 0);
+  // ✅ FIXED TOTAL BALANCE
+  const displayBalance =
+    userBalance + lockedBalance + (earning?.earnedSoFar || 0);
+
   const roi =
-    userBalance > 0 && earning
-      ? (earning.earnedSoFar / userBalance) * 100
+    lockedBalance > 0 && earning
+      ? (earning.earnedSoFar / lockedBalance) * 100
       : 0;
 
   return (
@@ -155,14 +125,14 @@ const displayBalance =
         <Wallet size={22} /> Portfolio
       </h1>
 
-      {/* BALANCE */}
+      {/* TOTAL BALANCE */}
       <div className="bg-gradient-to-r from-[#131A2A] to-[#1A2235] p-5 rounded-2xl mb-4 shadow-lg">
 
         <p className="text-gray-400 text-sm">Total Balance</p>
 
         <h2 className="text-3xl font-bold mt-1">
-  ${displayBalance.toFixed(2)}
-</h2>
+          ${displayBalance.toFixed(2)}
+        </h2>
 
         {earning?.status === "active" && (
           <p className="text-yellow-400 text-sm mt-2 flex items-center gap-1">
@@ -176,6 +146,34 @@ const displayBalance =
           </p>
         )}
       </div>
+
+      {/* 🔥 AVAILABLE vs LOCKED */}
+      <div className="flex justify-between mb-6 gap-3">
+
+        <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
+          <p className="text-gray-400 text-xs">Available</p>
+          <p className="font-semibold text-white">
+            ${userBalance.toFixed(2)}
+          </p>
+        </div>
+
+        <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
+          <p className="text-gray-400 text-xs flex items-center gap-1">
+            🔒 Locked
+          </p>
+          <p className="font-semibold text-yellow-400">
+            ${lockedBalance.toFixed(2)}
+          </p>
+        </div>
+
+      </div>
+
+      {/* LOCK MESSAGE */}
+      {lockedBalance > 0 && (
+        <p className="text-yellow-400 text-xs mb-4">
+          🔒 Your funds are locked in earning
+        </p>
+      )}
 
       {/* EARN CARD */}
       <div className="bg-[#131A2A] p-5 rounded-2xl mb-6 shadow-lg border border-gray-800">
@@ -200,7 +198,7 @@ const displayBalance =
           />
         </div>
 
-        {/* 🔥 FIXED BUTTON */}
+        {/* START BUTTON */}
         {!earning && userBalance > 0 && (
           <button
             onClick={startEarning}
@@ -212,7 +210,7 @@ const displayBalance =
       </div>
 
       {/* EMPTY */}
-      {userBalance === 0 && (
+      {userBalance === 0 && lockedBalance === 0 && (
         <div className="bg-[#131A2A] p-6 rounded-xl text-center text-gray-400">
           No balance available
         </div>

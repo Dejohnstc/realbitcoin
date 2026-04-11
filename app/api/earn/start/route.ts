@@ -12,13 +12,19 @@ export async function POST(req: Request) {
     const decoded = verifyToken(token || "");
 
     if (!decoded?.userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const user = await User.findById(decoded.userId);
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
     }
 
     // ❌ prevent multiple active sessions
@@ -34,12 +40,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // 🔒 CHECK BALANCE
     const depositAmount = user.balance;
+
+    if (depositAmount <= 0) {
+      return NextResponse.json(
+        { error: "No balance available" },
+        { status: 400 }
+      );
+    }
+
     const targetAmount = depositAmount * 10;
 
     const startTime = new Date();
-    const endTime = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const endTime = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000
+    );
 
+    // ✅ CREATE EARNING
     await Earning.create({
       userId: user._id,
       depositAmount,
@@ -48,10 +66,22 @@ export async function POST(req: Request) {
       endTime,
     });
 
-    return NextResponse.json({ message: "Earning started" });
+    // 🔒 LOCK FUNDS (CRITICAL FIX)
+    user.lockedBalance = depositAmount;
+    user.balance = 0;
+
+    await user.save();
+
+    return NextResponse.json({
+      message: "Earning started successfully",
+    });
 
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    console.error("START EARNING ERROR:", err);
+
+    return NextResponse.json(
+      { error: "Failed" },
+      { status: 500 }
+    );
   }
 }

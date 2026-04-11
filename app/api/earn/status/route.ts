@@ -3,6 +3,7 @@ import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import Earning from "@/models/Earning";
 import Notification from "@/models/Notification";
+import User from "@/models/User";
 
 export async function GET(req: Request) {
   try {
@@ -12,7 +13,10 @@ export async function GET(req: Request) {
     const decoded = verifyToken(token || "");
 
     if (!decoded?.userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const earning = await Earning.findOne({
@@ -32,7 +36,7 @@ export async function GET(req: Request) {
 
     const earned = earning.targetAmount * progress;
 
-    // 🔥 SAFE PROFIT NOTIFICATION (every $50 step)
+    // 🔥 PROFIT NOTIFICATION
     const lastNotified = earning.lastNotifiedAmount || 0;
 
     if (earned - lastNotified >= 50) {
@@ -40,7 +44,6 @@ export async function GET(req: Request) {
         userId: earning.userId.toString(),
         type: "system",
         message: "New profit added to your earnings",
-
         meta: {
           amount: Math.floor(earned),
         },
@@ -49,16 +52,28 @@ export async function GET(req: Request) {
       earning.lastNotifiedAmount = earned;
     }
 
-    // 🔥 AUTO COMPLETE + NOTIFICATION
+    // 🔓 COMPLETE + UNLOCK
     if (progress >= 1 && earning.status !== "completed") {
       earning.status = "completed";
       earning.earnedSoFar = earning.targetAmount;
 
+      // 🔥 GET USER
+      const user = await User.findById(earning.userId);
+
+      if (user) {
+        // 🔓 UNLOCK FUNDS + ADD PROFIT
+        user.balance += earning.targetAmount;
+        user.lockedBalance = 0;
+
+        await user.save();
+      }
+
+      // 🔔 NOTIFICATION
       await Notification.create({
         userId: earning.userId.toString(),
         type: "system",
         message:
-          "Earnings completed. You can now withdraw your profits.",
+          "Earnings completed. Your balance has been unlocked.",
 
         meta: {
           amount: earning.targetAmount,
@@ -66,7 +81,7 @@ export async function GET(req: Request) {
       });
     }
 
-    // ✅ SAVE ONCE (SAFE)
+    // ✅ SAVE EARNING
     await earning.save();
 
     return NextResponse.json({
