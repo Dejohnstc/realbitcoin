@@ -144,7 +144,7 @@ export default function DashboardPage() {
 
         <button
           onClick={() => router.push("/dashboard/investments")}
-          className="flex-1 py-3 rounded-xl bg-green-500 text-black font-semibold"
+          className="flex-1 py-3 rounded-xl bg-yellow-400 text-black font-semibold"
         >
           🚀 Start Investment
         </button>

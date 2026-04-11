@@ -57,14 +57,14 @@ export default function DashboardHeader({ title, showBack }: Props) {
       {/* LEFT */}
       <div className="flex items-center gap-3">
 
-        {showBack && (
+        {/* {showBack && (
           <button
             onClick={() => router.back()}
             className="text-gray-400 hover:text-white"
           >
             ←
           </button>
-        )}
+        )} */}
 
         <div className="w-8 h-8 rounded-md bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-sm font-bold">
           R

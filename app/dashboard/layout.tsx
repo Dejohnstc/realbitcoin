@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import DashboardHeader from "@/components/DashboardHeader";
+import ChatWidget from "@/components/ChatWidget";
 
 export default function DashboardLayout({
   children,
@@ -27,10 +28,11 @@ export default function DashboardLayout({
   const showBack = pathname !== "/dashboard";
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
+    <div className="min-h-screen bg-[#0B0F19] text-white px-2 pb-12">
 
       {/* 🔥 AUTO HEADER */}
       <DashboardHeader title={getTitle()} showBack={showBack} />
+      <ChatWidget/>
 
       {/* PAGE CONTENT */}
       {children}
