@@ -10,26 +10,56 @@ export async function GET(req: Request): Promise<NextResponse> {
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
 
-    if (!decoded) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    if (!decoded?.userId) {
+      return NextResponse.json(
+        { error: "Invalid token" },
+        { status: 401 }
+      );
     }
 
     const user = await User.findById(decoded.userId);
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({
-      balance: user.balance,
-    });
-  } catch {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    console.log("✅ USER FETCH:", user.balance);
+
+    return NextResponse.json(
+      {
+        user: {
+          name: user.name || user.email.split("@")[0],
+          email: user.email,
+          balance: user.balance,
+          role: user.role,
+        },
+      },
+      {
+        // 🔥 VERY IMPORTANT: prevent stale data
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+
+  } catch (error) {
+    console.error("❌ USER FETCH ERROR:", error);
+
+    return NextResponse.json(
+      { error: "Failed" },
+      { status: 500 }
+    );
   }
 }

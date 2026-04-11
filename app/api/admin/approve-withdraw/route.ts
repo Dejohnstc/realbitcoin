@@ -5,6 +5,7 @@ import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { sendWithdrawEmail } from "@/lib/mail";
 import Notification from "@/models/Notification";
+import mongoose from "mongoose";
 
 interface Body {
   withdrawId: string;
@@ -12,8 +13,11 @@ interface Body {
 }
 
 export async function POST(req: Request): Promise<NextResponse> {
+  const session = await mongoose.startSession();
+
   try {
     await connectDB();
+    session.startTransaction();
 
     const authHeader = req.headers.get("authorization");
 
@@ -28,7 +32,6 @@ export async function POST(req: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    // ✅ CHECK ADMIN
     const admin = await User.findById(decoded.userId);
 
     if (!admin || admin.role !== "admin") {
@@ -37,19 +40,20 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const { withdrawId, action }: Body = await req.json();
 
-    const withdraw = await Withdraw.findById(withdrawId);
+    const withdraw = await Withdraw.findById(withdrawId).session(session);
 
     if (!withdraw || withdraw.status !== "pending") {
+      await session.abortTransaction();
       return NextResponse.json(
         { error: "Invalid request" },
         { status: 400 }
       );
     }
 
-    // ✅ GET USER
-    const user = await User.findById(withdraw.userId);
+    const user = await User.findById(withdraw.userId).session(session);
 
     if (!user || !user.email) {
+      await session.abortTransaction();
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
@@ -57,8 +61,8 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     if (action === "approve") {
-      // ⚠️ SAFETY CHECK
       if (user.balance < withdraw.amount) {
+        await session.abortTransaction();
         return NextResponse.json(
           { error: "Insufficient user balance" },
           { status: 400 }
@@ -67,46 +71,61 @@ export async function POST(req: Request): Promise<NextResponse> {
 
       withdraw.status = "approved";
 
-      // ✅ DEDUCT BALANCE
-      await User.findByIdAndUpdate(withdraw.userId, {
-        $inc: { balance: -withdraw.amount },
-      });
+      // 🔥 GUARANTEED BALANCE DEDUCTION
+      user.balance -= withdraw.amount;
+      await user.save({ session });
 
-      // ✅ EMAIL
-      await sendWithdrawEmail(user.email, withdraw.amount);
+      console.log("✅ New balance after withdrawal:", user.balance);
 
-      // ✅ NOTIFICATION (APPROVED)
-      await Notification.create({
-        userId: withdraw.userId.toString(),
-        type: "withdraw",
-        message: "Withdrawal processed",
+      // 🔥 SAFE EMAIL (non-blocking)
+      sendWithdrawEmail(user.email, withdraw.amount).catch((err) =>
+        console.error("Withdraw email failed:", err)
+      );
 
-        meta: {
-          amount: withdraw.amount,
-        },
-      });
+      await Notification.create(
+        [
+          {
+            userId: withdraw.userId.toString(),
+            type: "withdraw",
+            message: "Withdrawal processed",
+            meta: {
+              amount: withdraw.amount,
+            },
+          },
+        ],
+        { session }
+      );
 
     } else {
       withdraw.status = "rejected";
 
-      // ✅ NOTIFICATION (REJECTED)
-      await Notification.create({
-        userId: withdraw.userId.toString(),
-        type: "withdraw",
-        message: "Withdrawal rejected",
-
-        meta: {
-          amount: withdraw.amount,
-        },
-      });
+      await Notification.create(
+        [
+          {
+            userId: withdraw.userId.toString(),
+            type: "withdraw",
+            message: "Withdrawal rejected",
+            meta: {
+              amount: withdraw.amount,
+            },
+          },
+        ],
+        { session }
+      );
     }
 
-    await withdraw.save();
+    await withdraw.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     return NextResponse.json({ message: "Done" });
 
   } catch (error) {
-    console.error(error);
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("❌ WITHDRAW ERROR:", error);
 
     return NextResponse.json(
       { error: "Failed" },

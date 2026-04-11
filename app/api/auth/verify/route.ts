@@ -23,6 +23,13 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+    // ✅ prevent re-verification spam
+    if (user.isVerified) {
+      return NextResponse.json({
+        message: "Account already verified",
+      });
+    }
+
     if (
       !user.otp ||
       !user.otpExpires ||
@@ -48,13 +55,21 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    await sendWelcomeEmail(user.email);
+    // 🔥 SAFE EMAIL SEND (DO NOT BREAK FLOW)
+    try {
+      await sendWelcomeEmail(user.email);
+      console.log("✅ Welcome email sent to:", user.email);
+    } catch (mailError) {
+      console.error("❌ Welcome email failed:", mailError);
+      // do NOT fail verification because of email
+    }
 
     return NextResponse.json({
       message: "Account verified successfully",
     });
+
   } catch (error) {
-    console.error(error);
+    console.error("VERIFY ERROR:", error);
 
     return NextResponse.json(
       { error: "Verification failed" },
