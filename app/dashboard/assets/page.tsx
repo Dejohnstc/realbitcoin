@@ -202,14 +202,18 @@ export default function AssetsPage() {
           >
             <div className="flex items-center gap-3">
 
-              <img
-                src={
-                  coinIcons[m.symbol.toLowerCase()] ||
-                  "https://cryptoicons.org/api/icon/btc/32"
-                }
-                alt={m.symbol}
-                className="w-7 h-7 object-contain"
-              />
+            <img
+  src={
+    coinIcons[m.symbol?.toLowerCase().split("/")[0]] ||
+    "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=029"
+  }
+  alt={m.symbol}
+  className="w-7 h-7 object-contain"
+  onError={(e) => {
+    (e.currentTarget as HTMLImageElement).src =
+      "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=029";
+  }}
+/>
 
               <div>
                 <p className="font-semibold">
@@ -228,17 +232,19 @@ export default function AssetsPage() {
               </div>
             </div>
 
-            <div className="text-right">
-              <p>
-                {hideBalance
-                  ? "****"
-                  : (user.balance / 1000).toFixed(8)}
-              </p>
+           <div className="text-right">
+  <p>
+    {hideBalance
+      ? "****"
+      : m.current_price
+      ? (user.balance / m.current_price).toFixed(6)
+      : "0.000000"}
+  </p>
 
-              <p className="text-xs text-gray-400">
-                ${m.current_price.toLocaleString()}
-              </p>
-            </div>
+  <p className="text-xs text-gray-400">
+    ${m.current_price?.toLocaleString() || "0.00"}
+  </p>
+</div>
           </div>
         ))}
 

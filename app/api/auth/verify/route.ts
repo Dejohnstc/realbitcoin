@@ -14,7 +14,10 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const { email, otp }: VerifyBody = await req.json();
 
-    const user = await User.findOne({ email });
+    // ✅ FIX 1: normalize email (CRITICAL)
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       return NextResponse.json(
@@ -30,10 +33,13 @@ export async function POST(req: Request): Promise<NextResponse> {
       });
     }
 
+    // ✅ FIX 2: trim OTP (handles spaces from input)
+    const cleanOtp = otp.trim();
+
     if (
       !user.otp ||
       !user.otpExpires ||
-      user.otp !== otp ||
+      user.otp !== cleanOtp ||
       user.otpExpires.getTime() < Date.now()
     ) {
       return NextResponse.json(
@@ -55,13 +61,12 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // 🔥 SAFE EMAIL SEND (DO NOT BREAK FLOW)
+    // 🔥 SAFE EMAIL SEND (non-blocking logic)
     try {
       await sendWelcomeEmail(user.email);
       console.log("✅ Welcome email sent to:", user.email);
     } catch (mailError) {
       console.error("❌ Welcome email failed:", mailError);
-      // do NOT fail verification because of email
     }
 
     return NextResponse.json({

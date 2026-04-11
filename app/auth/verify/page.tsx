@@ -15,11 +15,20 @@ function VerifyContent() {
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const [message, setMessage] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [success, setSuccess] = useState<boolean>(false);
   const [timeLeft, setTimeLeft] = useState<number>(60);
+  const [redirectTime, setRedirectTime] = useState<number>(5);
 
+  // 🔔 TOAST STATE
+  const [toast, setToast] = useState<string>("");
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  // ⏱ RESEND TIMER
   useEffect(() => {
     if (timeLeft <= 0) return;
 
@@ -30,11 +39,28 @@ function VerifyContent() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
+  // ⏳ REDIRECT AFTER SUCCESS
+  useEffect(() => {
+    if (!success) return;
+
+    const timer = setInterval(() => {
+      setRedirectTime((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          router.push("/auth/login");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [success]);
+
   const handleVerify = async (code: string) => {
     if (code.length < 6) return;
 
     setLoading(true);
-    setMessage("");
 
     try {
       const res = await fetch("/api/auth/verify", {
@@ -45,10 +71,14 @@ function VerifyContent() {
 
       const data = await res.json();
 
-      if (!res.ok) setMessage(data.error || "Invalid OTP");
-      else setSuccess(true);
+      if (!res.ok) {
+        showToast(data.error || "Invalid OTP");
+      } else {
+        setSuccess(true);
+        showToast("Account verified successfully 🎉");
+      }
     } catch {
-      setMessage("Network error");
+      showToast("Network error");
     }
 
     setLoading(false);
@@ -88,46 +118,65 @@ function VerifyContent() {
     handleVerify(newOtp.join(""));
   };
 
+  // 🔥 FIXED RESEND
   const handleResend = async () => {
     if (timeLeft > 0) return;
 
     try {
-      setMessage("");
-
-      await fetch("/api/auth/register/resend", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password: "temp123",
+        }),
       });
 
-      setTimeLeft(60);
-      setMessage("New OTP sent");
+      const data = await res.json();
+
+      if (res.ok) {
+        setTimeLeft(60);
+        showToast("New OTP sent successfully");
+      } else {
+        showToast(data.error || "Failed to resend");
+      }
     } catch {
-      setMessage("Failed to resend OTP");
+      showToast("Failed to resend OTP");
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] px-4 text-white">
+
+      {/* 🔔 TOAST */}
+      {toast && (
+        <div className="fixed top-6 right-6 bg-[#131A2A] border border-gray-700 px-4 py-2 rounded-lg shadow-lg text-sm">
+          {toast}
+        </div>
+      )}
+
       <div className="bg-[#131A2A] p-6 rounded-xl w-full max-w-md border border-gray-800">
 
         {success ? (
-          <div className="text-center">
-            <div className="text-4xl mb-4">✅</div>
+          <div className="text-center animate-fade-in">
+
+            <div className="text-5xl mb-4 animate-bounce">🎉</div>
 
             <h2 className="text-2xl font-bold mb-2">
               Account Verified
             </h2>
 
-            <p className="text-gray-400 mb-6">
-              Your account has been successfully verified.
+            <p className="text-gray-400 mb-4">
+              Redirecting in {redirectTime}s...
             </p>
 
             <button
               onClick={() => router.push("/auth/login")}
               className="w-full bg-yellow-400 text-black py-3 rounded-lg font-semibold"
             >
-              Proceed to Login
+              Go to Login
             </button>
           </div>
         ) : (
@@ -144,9 +193,9 @@ function VerifyContent() {
               {otp.map((digit, i) => (
                 <input
                   key={i}
-                 ref={(el) => {
-  inputs.current[i] = el;
-}}
+                  ref={(el) => {
+                    inputs.current[i] = el;
+                  }}
                   value={digit}
                   onChange={(e) => handleChange(e.target.value, i)}
                   onKeyDown={(e) => handleBackspace(e, i)}
@@ -168,17 +217,14 @@ function VerifyContent() {
               {timeLeft > 0 ? (
                 <span>Resend available in {timeLeft}s</span>
               ) : (
-                <span onClick={handleResend} className="text-blue-400 cursor-pointer">
+                <button
+                  onClick={handleResend}
+                  className="text-yellow-400 font-medium"
+                >
                   Resend Code
-                </span>
+                </button>
               )}
             </div>
-
-            {message && (
-              <p className="mt-4 text-center text-sm text-gray-300">
-                {message}
-              </p>
-            )}
           </>
         )}
       </div>

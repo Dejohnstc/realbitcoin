@@ -22,8 +22,12 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    const existingUser = await User.findOne({ email });
+    // ✅ FIX 1: normalize email (CRITICAL)
+    const normalizedEmail = email.trim().toLowerCase();
 
+    const existingUser = await User.findOne({ email: normalizedEmail });
+
+    // ✅ FIX 2: allow resend if NOT verified
     if (existingUser && existingUser.isVerified) {
       return NextResponse.json(
         { error: "User already exists" },
@@ -36,10 +40,11 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
+    // ✅ FIX 3: always update same normalized email
     const user = await User.findOneAndUpdate(
-      { email },
+      { email: normalizedEmail },
       {
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         otp,
         otpExpires,
@@ -48,14 +53,19 @@ export async function POST(req: Request): Promise<NextResponse> {
       { upsert: true, new: true }
     );
 
-    await sendOTP(email, otp);
+    // ✅ FIX 4: send to normalized email
+    await sendOTP(normalizedEmail, otp);
+
+    console.log("✅ OTP SENT TO:", normalizedEmail);
 
     return NextResponse.json({
       message: "OTP sent to email",
       userId: user._id,
     });
+
   } catch (error) {
-    console.error(error);
+    console.error("❌ REGISTER ERROR:", error);
+
     return NextResponse.json(
       { error: "Something went wrong" },
       { status: 500 }
