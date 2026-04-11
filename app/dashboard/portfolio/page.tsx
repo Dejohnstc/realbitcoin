@@ -26,13 +26,33 @@ interface Earning {
 
 export default function PortfolioPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [totalInvested, setTotalInvested] = useState<number>(0);
-  const [displayBalance, setDisplayBalance] = useState<number>(0);
+  const [userBalance, setUserBalance] = useState(0); // ✅ FIX
   const [earning, setEarning] = useState<Earning | null>(null);
 
   const router = useRouter();
 
-  // ✅ FETCH INVESTMENTS
+  // ✅ FETCH USER BALANCE (CRITICAL FIX)
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const token = localStorage.getItem("user_token");
+
+        const res = await fetch("/api/user/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json();
+
+        setUserBalance(data.user?.balance || 0);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    loadUser();
+  }, []);
+
+  // ✅ FETCH INVESTMENTS (unchanged)
   useEffect(() => {
     let ignore = false;
 
@@ -53,13 +73,6 @@ export default function PortfolioPage() {
           : [];
 
         setInvestments(invs);
-
-        let invested = 0;
-        for (const inv of invs) {
-          invested += inv.amount;
-        }
-
-        setTotalInvested(invested);
       } catch (err) {
         console.log(err);
       }
@@ -70,7 +83,7 @@ export default function PortfolioPage() {
     };
   }, []);
 
-  // ✅ FETCH EARNING (FIXED TYPE)
+  // ✅ FETCH EARNING
   useEffect(() => {
     const loadEarning = async () => {
       try {
@@ -82,7 +95,7 @@ export default function PortfolioPage() {
 
         const data = await res.json();
 
-        setEarning(data.earning);
+        setEarning(data.earning || null);
       } catch (err) {
         console.log(err);
       }
@@ -90,10 +103,7 @@ export default function PortfolioPage() {
 
     loadEarning();
 
-    const interval: ReturnType<typeof setInterval> = setInterval(
-      loadEarning,
-      5000
-    );
+    const interval = setInterval(loadEarning, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -120,39 +130,19 @@ export default function PortfolioPage() {
     }
   };
 
-  // ✅ SMOOTH BALANCE ANIMATION
-  useEffect(() => {
-    let frame: number;
-
-    const animate = () => {
-      setDisplayBalance((prev) => {
-        const target =
-          totalInvested + (earning?.earnedSoFar || 0);
-
-        const diff = target - prev;
-
-        if (Math.abs(diff) < 0.01) return target;
-
-        return prev + diff * 0.1;
-      });
-
-      frame = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => cancelAnimationFrame(frame);
-  }, [totalInvested, earning]);
-
+  // ✅ FIXED BALANCE (NO BUG)
+  
+const displayBalance =
+  userBalance + (earning?.earnedSoFar || 0);
   const roi =
-    totalInvested > 0 && earning
-      ? (earning.earnedSoFar / totalInvested) * 100
+    userBalance > 0 && earning
+      ? (earning.earnedSoFar / userBalance) * 100
       : 0;
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
 
-      {/* 🔙 BACK */}
+      {/* BACK */}
       <button
         onClick={() => router.back()}
         className="mt-4 mb-4 flex items-center gap-2 text-gray-400"
@@ -165,14 +155,14 @@ export default function PortfolioPage() {
         <Wallet size={22} /> Portfolio
       </h1>
 
-      {/* 💰 BALANCE CARD */}
+      {/* BALANCE */}
       <div className="bg-gradient-to-r from-[#131A2A] to-[#1A2235] p-5 rounded-2xl mb-4 shadow-lg">
 
         <p className="text-gray-400 text-sm">Total Balance</p>
 
         <h2 className="text-3xl font-bold mt-1">
-          ${displayBalance.toFixed(2)}
-        </h2>
+  ${displayBalance.toFixed(2)}
+</h2>
 
         {earning?.status === "active" && (
           <p className="text-yellow-400 text-sm mt-2 flex items-center gap-1">
@@ -187,7 +177,7 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      {/* 📈 EARN CARD */}
+      {/* EARN CARD */}
       <div className="bg-[#131A2A] p-5 rounded-2xl mb-6 shadow-lg border border-gray-800">
 
         <div className="flex justify-between items-center mb-2">
@@ -203,19 +193,18 @@ export default function PortfolioPage() {
           ROI: {roi.toFixed(2)}%
         </p>
 
-        {/* PROGRESS */}
-        <div className="mt-4 h-2 bg-[#0B0F19] rounded-full overflow-hidden">
+        <div className="mt-4 h-2 bg-[#0B0F19] rounded-full">
           <div
-            className="h-full bg-green-400 transition-all duration-500"
+            className="h-full bg-green-400"
             style={{ width: `${earning?.progress || 0}%` }}
           />
         </div>
 
-        {/* START BUTTON */}
-        {!earning && totalInvested > 0 && (
+        {/* 🔥 FIXED BUTTON */}
+        {!earning && userBalance > 0 && (
           <button
             onClick={startEarning}
-            className="mt-4 w-full bg-yellow-400 text-black py-2 rounded-xl font-semibold hover:opacity-90"
+            className="mt-4 w-full bg-yellow-400 text-black py-2 rounded-xl font-semibold"
           >
             Start Earning
           </button>
@@ -223,38 +212,11 @@ export default function PortfolioPage() {
       </div>
 
       {/* EMPTY */}
-      {investments.length === 0 && (
+      {userBalance === 0 && (
         <div className="bg-[#131A2A] p-6 rounded-xl text-center text-gray-400">
-          No investments yet
+          No balance available
         </div>
       )}
-
-      {/* LIST */}
-      {investments.map((inv) => (
-        <div
-          key={inv._id}
-          className="bg-[#131A2A] p-4 rounded-xl mb-3 border border-gray-800"
-        >
-          <div className="flex justify-between items-center">
-
-            <p className="font-semibold">
-              ${inv.amount.toFixed(2)}
-            </p>
-
-            <span
-              className={`text-xs px-2 py-1 rounded-full ${
-                earning?.status === "active"
-                  ? "bg-yellow-500/20 text-yellow-400"
-                  : "bg-green-500/20 text-green-400"
-              }`}
-            >
-              {earning?.status === "active"
-                ? "locked"
-                : "available"}
-            </span>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
