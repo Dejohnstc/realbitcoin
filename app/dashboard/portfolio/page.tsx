@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Wallet,
+  TrendingUp,
+  Lock,
+  Unlock,
+} from "lucide-react";
 
 interface Investment {
   _id: string;
@@ -10,16 +17,22 @@ interface Investment {
   status: "active" | "completed";
 }
 
+interface Earning {
+  earnedSoFar: number;
+  progress: number;
+  targetAmount: number;
+  status: "active" | "completed";
+}
+
 export default function PortfolioPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
-  const [totalInvested, setTotalInvested] = useState(0);
-  const [totalProfit, setTotalProfit] = useState(0);
-
-  const [displayBalance, setDisplayBalance] = useState(0);
-  const [displayProfit, setDisplayProfit] = useState(0);
+  const [totalInvested, setTotalInvested] = useState<number>(0);
+  const [displayBalance, setDisplayBalance] = useState<number>(0);
+  const [earning, setEarning] = useState<Earning | null>(null);
 
   const router = useRouter();
 
+  // ✅ FETCH INVESTMENTS
   useEffect(() => {
     let ignore = false;
 
@@ -28,36 +41,27 @@ export default function PortfolioPage() {
         const token = localStorage.getItem("user_token");
 
         const res = await fetch("/api/invest", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         const data = await res.json();
 
         if (ignore) return;
 
-        const invs = Array.isArray(data.investments)
+        const invs: Investment[] = Array.isArray(data.investments)
           ? data.investments
           : [];
 
         setInvestments(invs);
 
         let invested = 0;
-        let profit = 0;
-
         for (const inv of invs) {
           invested += inv.amount;
-
-          if (inv.status === "completed") {
-            profit += inv.amount * (inv.profit / 100);
-          }
         }
 
         setTotalInvested(invested);
-        setTotalProfit(profit);
       } catch (err) {
-        console.log("Fetch error", err);
+        console.log(err);
       }
     })();
 
@@ -66,21 +70,69 @@ export default function PortfolioPage() {
     };
   }, []);
 
-  // 🔥 ANIMATION (SAFE)
+  // ✅ FETCH EARNING (FIXED TYPE)
+  useEffect(() => {
+    const loadEarning = async () => {
+      try {
+        const token = localStorage.getItem("user_token");
+
+        const res = await fetch("/api/earn/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json();
+
+        setEarning(data.earning);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    loadEarning();
+
+    const interval: ReturnType<typeof setInterval> = setInterval(
+      loadEarning,
+      5000
+    );
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ✅ START EARNING
+  const startEarning = async () => {
+    try {
+      const token = localStorage.getItem("user_token");
+
+      const res = await fetch("/api/earn/start", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // ✅ SMOOTH BALANCE ANIMATION
   useEffect(() => {
     let frame: number;
 
     const animate = () => {
       setDisplayBalance((prev) => {
-        const target = totalInvested + totalProfit;
-        const diff = target - prev;
-        if (Math.abs(diff) < 0.01) return target;
-        return prev + diff * 0.1;
-      });
+        const target =
+          totalInvested + (earning?.earnedSoFar || 0);
 
-      setDisplayProfit((prev) => {
-        const diff = totalProfit - prev;
-        if (Math.abs(diff) < 0.01) return totalProfit;
+        const diff = target - prev;
+
+        if (Math.abs(diff) < 0.01) return target;
+
         return prev + diff * 0.1;
       });
 
@@ -90,59 +142,84 @@ export default function PortfolioPage() {
     animate();
 
     return () => cancelAnimationFrame(frame);
-  }, [totalInvested, totalProfit]);
+  }, [totalInvested, earning]);
 
   const roi =
-    totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+    totalInvested > 0 && earning
+      ? (earning.earnedSoFar / totalInvested) * 100
+      : 0;
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
 
-      {/* BACK */}
+      {/* 🔙 BACK */}
       <button
         onClick={() => router.back()}
-        className="mt-4 mb-4 text-gray-400 hover:text-white"
+        className="mt-4 mb-4 flex items-center gap-2 text-gray-400"
       >
-        ← Back
+        <ArrowLeft size={16} /> Back
       </button>
 
       {/* HEADER */}
-      <h1 className="text-2xl font-bold mb-4">
-        💼 My Portfolio
+      <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
+        <Wallet size={22} /> Portfolio
       </h1>
 
-      {/* SUMMARY */}
-      <div className="bg-gradient-to-r from-[#131A2A] to-[#1A2235] p-5 rounded-2xl mb-6 shadow-lg">
+      {/* 💰 BALANCE CARD */}
+      <div className="bg-gradient-to-r from-[#131A2A] to-[#1A2235] p-5 rounded-2xl mb-4 shadow-lg">
 
-        <p className="text-gray-400 text-sm mb-1">
-          Total Balance
-        </p>
+        <p className="text-gray-400 text-sm">Total Balance</p>
 
-        <h2 className="text-3xl font-bold mb-3">
+        <h2 className="text-3xl font-bold mt-1">
           ${displayBalance.toFixed(2)}
         </h2>
 
-        <div className="flex justify-between text-sm">
+        {earning?.status === "active" && (
+          <p className="text-yellow-400 text-sm mt-2 flex items-center gap-1">
+            <Lock size={14} /> Earning in progress
+          </p>
+        )}
 
-          <div>
-            <p className="text-gray-400">Invested</p>
-            <p>${totalInvested.toFixed(2)}</p>
-          </div>
+        {earning?.status === "completed" && (
+          <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
+            <Unlock size={14} /> Earnings available
+          </p>
+        )}
+      </div>
 
-          <div>
-            <p className="text-gray-400">Profit</p>
-            <p className="text-green-400 animate-pulse">
-              +${displayProfit.toFixed(2)}
-            </p>
-          </div>
+      {/* 📈 EARN CARD */}
+      <div className="bg-[#131A2A] p-5 rounded-2xl mb-6 shadow-lg border border-gray-800">
 
-          <div>
-            <p className="text-gray-400">ROI</p>
-            <p className="text-green-400">
-              {roi.toFixed(2)}%
-            </p>
-          </div>
+        <div className="flex justify-between items-center mb-2">
+          <p className="text-gray-400 text-sm">Earn Balance</p>
+          <TrendingUp className="text-green-400" size={18} />
         </div>
+
+        <h2 className="text-2xl font-bold text-green-400">
+          +${(earning?.earnedSoFar || 0).toFixed(2)}
+        </h2>
+
+        <p className="text-sm text-gray-400 mt-1">
+          ROI: {roi.toFixed(2)}%
+        </p>
+
+        {/* PROGRESS */}
+        <div className="mt-4 h-2 bg-[#0B0F19] rounded-full overflow-hidden">
+          <div
+            className="h-full bg-green-400 transition-all duration-500"
+            style={{ width: `${earning?.progress || 0}%` }}
+          />
+        </div>
+
+        {/* START BUTTON */}
+        {!earning && totalInvested > 0 && (
+          <button
+            onClick={startEarning}
+            className="mt-4 w-full bg-yellow-400 text-black py-2 rounded-xl font-semibold hover:opacity-90"
+          >
+            Start Earning
+          </button>
+        )}
       </div>
 
       {/* EMPTY */}
@@ -153,49 +230,31 @@ export default function PortfolioPage() {
       )}
 
       {/* LIST */}
-      {investments.map((inv) => {
-        const profitValue = inv.amount * (inv.profit / 100);
+      {investments.map((inv) => (
+        <div
+          key={inv._id}
+          className="bg-[#131A2A] p-4 rounded-xl mb-3 border border-gray-800"
+        >
+          <div className="flex justify-between items-center">
 
-        return (
-          <div
-            key={inv._id}
-            className="bg-[#131A2A] p-4 rounded-xl mb-3 hover:bg-[#1A2235] transition"
-          >
-            <div className="flex justify-between mb-2">
-              <p className="font-semibold">
-                ${inv.amount.toFixed(2)}
-              </p>
+            <p className="font-semibold">
+              ${inv.amount.toFixed(2)}
+            </p>
 
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  inv.status === "active"
-                    ? "bg-yellow-500/20 text-yellow-400"
-                    : "bg-green-500/20 text-green-400"
-                }`}
-              >
-                {inv.status}
-              </span>
-            </div>
-
-            <div className="flex justify-between text-sm">
-              <p className="text-gray-400">Profit</p>
-              <p className="text-green-400">
-                +${profitValue.toFixed(2)}
-              </p>
-            </div>
-
-            <div className="mt-3 h-2 bg-[#0B0F19] rounded-full">
-              <div
-                className={`h-full ${
-                  inv.status === "completed"
-                    ? "bg-green-400 w-full"
-                    : "bg-yellow-400 w-1/2"
-                }`}
-              />
-            </div>
+            <span
+              className={`text-xs px-2 py-1 rounded-full ${
+                earning?.status === "active"
+                  ? "bg-yellow-500/20 text-yellow-400"
+                  : "bg-green-500/20 text-green-400"
+              }`}
+            >
+              {earning?.status === "active"
+                ? "locked"
+                : "available"}
+            </span>
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }

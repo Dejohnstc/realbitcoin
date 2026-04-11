@@ -22,7 +22,7 @@ interface Notification {
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const { notifications = [], markOneRead } = useNotifications(); // ✅ SAFE DEFAULT
+  const { notifications = [], markOneRead } = useNotifications();
 
   const [tab, setTab] = useState<Tab>("all");
   const [selected, setSelected] = useState<Notification | null>(null);
@@ -50,12 +50,18 @@ export default function NotificationsPage() {
     } catch {}
   };
 
+  // 🔥 SMART TITLE
   const getTitle = (n: Notification) => {
     if (n.type === "deposit") return "Deposit Successful";
     if (n.type === "withdraw") return "Withdrawal Update";
-    return "System Notification";
+
+    if (n.message.includes("bonus")) return "Trading Bonus";
+    if (n.message.includes("completed")) return "Earnings Completed";
+
+    return "Profit Update";
   };
 
+  // 🔥 SMART SUBTITLE
   const getSubtitle = (n: Notification) => {
     if (!n.meta) return n.message;
 
@@ -70,22 +76,31 @@ export default function NotificationsPage() {
     return n.message;
   };
 
-  const getIcon = (type?: Notification["type"]) => {
-    if (type === "deposit") return "💰";
-    if (type === "withdraw") return "📤";
-    return "🔔";
+  // 🔥 PRO ICON SYSTEM
+  const getIcon = (n: Notification) => {
+    if (n.type === "deposit") return "💰";
+    if (n.type === "withdraw") return "📤";
+
+    if (n.message.includes("bonus")) return "🎁";
+    if (n.message.includes("completed")) return "✅";
+
+    return "📈";
   };
 
   return (
-    <div className="pt-4 px-4">
+    <div className="pt-4 px-4 pb-24">
 
-      {/* BACK */}
-      <button
-        onClick={() => router.push("/dashboard")}
-        className="mb-4 px-3 py-1 border border-yellow-400 text-yellow-400 rounded-lg text-sm"
-      >
-        Back
-      </button>
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-xl font-semibold">Notifications</h1>
+
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="text-sm text-yellow-400 border border-yellow-400 px-3 py-1 rounded-lg"
+        >
+          Back
+        </button>
+      </div>
 
       {/* TABS */}
       <div className="flex gap-3 mb-6 overflow-x-auto">
@@ -119,11 +134,11 @@ export default function NotificationsPage() {
             className={`p-4 rounded-xl border cursor-pointer flex items-center gap-3 transition ${
               n.read
                 ? "bg-[#0F1525] opacity-70 border-white/5"
-                : "bg-[#131A2A] border-yellow-400/30 hover:bg-[#1A2235]"
+                : "bg-gradient-to-r from-[#131A2A] to-[#1A2235] border-yellow-400/30 hover:scale-[1.01]"
             }`}
           >
             {/* ICON */}
-            <div className="text-xl">{getIcon(n.type)}</div>
+            <div className="text-xl">{getIcon(n)}</div>
 
             {/* CONTENT */}
             <div className="flex-1">
@@ -144,7 +159,7 @@ export default function NotificationsPage() {
 
             {/* UNREAD DOT */}
             {!n.read && (
-              <div className="w-2 h-2 bg-yellow-400 rounded-full" />
+              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
             )}
           </div>
         ))}
@@ -168,8 +183,14 @@ export default function NotificationsPage() {
               {getSubtitle(selected)}
             </p>
 
+            {selected.meta?.amount && (
+              <p className="text-green-400 font-semibold">
+                +${selected.meta.amount}
+              </p>
+            )}
+
             {selected.createdAt && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 mt-2">
                 {new Date(selected.createdAt).toLocaleString()}
               </p>
             )}
