@@ -17,27 +17,83 @@ export const sendOTP = async (email: string, otp: string) => {
       subject: "Your RealBitcoin Verification Code",
 
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2 style="color: #111;">Verify Your Account</h2>
+      <div style="margin:0;padding:0;background:#0B0F19;font-family:Arial,Helvetica,sans-serif;">
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+          <tr>
+            <td align="center">
 
-          <p>Your verification code is:</p>
+              <table width="420" cellpadding="0" cellspacing="0" style="background:#131A2A;border-radius:16px;padding:30px;color:white;">
+                
+                <!-- LOGO -->
+                <tr>
+                  <td align="center" style="padding-bottom:20px;">
+                    <h2 style="margin:0;color:#FFD700;">RealBitcoin</h2>
+                  </td>
+                </tr>
 
-          <h1 style="letter-spacing: 4px; color: #2563eb;">
-            ${otp}
-          </h1>
+                <!-- TITLE -->
+                <tr>
+                  <td align="center" style="padding-bottom:10px;">
+                    <h3 style="margin:0;">Verify Your Account</h3>
+                  </td>
+                </tr>
 
-          <p>This code expires in 10 minutes.</p>
+                <!-- TEXT -->
+                <tr>
+                  <td align="center" style="padding:10px 0;color:#9CA3AF;font-size:14px;">
+                    Use the code below to complete your registration
+                  </td>
+                </tr>
 
-          <br/>
+                <!-- OTP BOX -->
+                <tr>
+                  <td align="center" style="padding:20px 0;">
+                    <div style="
+                      background:#0B0F19;
+                      padding:15px 25px;
+                      border-radius:10px;
+                      font-size:28px;
+                      letter-spacing:6px;
+                      font-weight:bold;
+                      color:#FFD700;
+                      display:inline-block;
+                    ">
+                      ${otp}
+                    </div>
+                  </td>
+                </tr>
 
-          <p style="font-size: 12px; color: gray;">
-            If you didn’t request this, ignore this email.
-          </p>
-        </div>
+                <!-- INFO -->
+                <tr>
+                  <td align="center" style="color:#9CA3AF;font-size:13px;">
+                    This code will expire in 10 minutes
+                  </td>
+                </tr>
+
+                <!-- WARNING -->
+                <tr>
+                  <td align="center" style="padding-top:20px;color:#6B7280;font-size:12px;">
+                    If you didn’t request this, you can safely ignore this email
+                  </td>
+                </tr>
+
+              </table>
+
+              <!-- FOOTER -->
+              <div style="margin-top:20px;color:#6B7280;font-size:12px;">
+                © ${new Date().getFullYear()} RealBitcoin. All rights reserved.
+              </div>
+
+            </td>
+          </tr>
+        </table>
+
+      </div>
       `,
     });
 
-    console.log("✅ OTP email sent");
+    console.log("✅ Premium OTP email sent");
   } catch (error) {
     console.error("❌ OTP email error:", error);
   }
@@ -102,37 +158,106 @@ export async function sendDepositEmail(
       from: "RealBitcoin <noreply@obiresoffice.com>",
       to: email,
       subject: "Deposit Approved ✅",
+
       html: `
-      <div style="font-family: Arial, sans-serif; background:#0B0F19; color:white; padding:20px;">
-        <div style="max-width:500px; margin:auto; background:#131A2A; padding:30px; border-radius:10px;">
+      <div style="margin:0;padding:0;background:#0B0F19;font-family:Arial,Helvetica,sans-serif;">
+        
+        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
+          <tr>
+            <td align="center">
 
-          <h2 style="color:#22c55e; text-align:center;">Deposit Confirmed</h2>
+              <table width="420" cellpadding="0" cellspacing="0" style="background:#131A2A;border-radius:16px;padding:30px;color:white;">
+                
+                <!-- LOGO -->
+                <tr>
+                  <td align="center" style="padding-bottom:20px;">
+                    <h2 style="margin:0;color:#FFD700;">RealBitcoin</h2>
+                  </td>
+                </tr>
 
-          <p>Your deposit has been successfully approved.</p>
+                <!-- TITLE -->
+                <tr>
+                  <td align="center" style="padding-bottom:10px;">
+                    <h3 style="margin:0;color:#22c55e;">Deposit Successful</h3>
+                  </td>
+                </tr>
 
-          <div style="text-align:center; margin:20px 0;">
-            <span style="font-size:26px; font-weight:bold; color:#22c55e;">
-              $${amount}
-            </span>
-          </div>
+                <!-- MESSAGE -->
+                <tr>
+                  <td align="center" style="padding:10px 0;color:#9CA3AF;font-size:14px;">
+                    Your deposit has been successfully approved
+                  </td>
+                </tr>
 
-          <p style="color:#ccc;">
-            Your balance has been updated. You can now start trading or invest.
-          </p>
+                <!-- AMOUNT BOX -->
+                <tr>
+                  <td align="center" style="padding:20px 0;">
+                    <div style="
+                      background:#0B0F19;
+                      padding:18px 28px;
+                      border-radius:12px;
+                      font-size:32px;
+                      font-weight:bold;
+                      color:#22c55e;
+                      display:inline-block;
+                      letter-spacing:1px;
+                    ">
+                      $${amount.toLocaleString()}
+                    </div>
+                  </td>
+                </tr>
 
-          <div style="text-align:center; margin-top:25px;">
-            <a href="${BASE_URL}/dashboard"
-               style="background:#22c55e; color:black; padding:10px 20px; text-decoration:none; border-radius:5px;">
-               Go to Dashboard
-            </a>
-          </div>
+                <!-- INFO -->
+                <tr>
+                  <td align="center" style="color:#9CA3AF;font-size:14px;">
+                    Your account balance has been updated.<br/>
+                    You can now start trading or investing.
+                  </td>
+                </tr>
 
-        </div>
+                <!-- CTA BUTTON -->
+                <tr>
+                  <td align="center" style="padding-top:30px;">
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard"
+                       style="
+                         background:linear-gradient(90deg,#22c55e,#16a34a);
+                         color:black;
+                         padding:14px 28px;
+                         text-decoration:none;
+                         border-radius:999px;
+                         font-weight:bold;
+                         font-size:14px;
+                         display:inline-block;
+                         box-shadow:0 5px 20px rgba(34,197,94,0.4);
+                       ">
+                      Go to Dashboard →
+                    </a>
+                  </td>
+                </tr>
+
+                <!-- FOOTER -->
+                <tr>
+                  <td align="center" style="padding-top:25px;color:#6B7280;font-size:12px;">
+                    If you did not initiate this deposit, contact support immediately.
+                  </td>
+                </tr>
+
+              </table>
+
+              <!-- COPYRIGHT -->
+              <div style="margin-top:20px;color:#6B7280;font-size:12px;">
+                © ${new Date().getFullYear()} RealBitcoin. All rights reserved.
+              </div>
+
+            </td>
+          </tr>
+        </table>
+
       </div>
       `,
     });
 
-    console.log("✅ Deposit email sent:", response);
+    console.log("✅ Premium deposit email sent:", response);
   } catch (error) {
     console.error("❌ Deposit email FAILED:", error);
   }
