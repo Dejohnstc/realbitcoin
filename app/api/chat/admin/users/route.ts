@@ -7,7 +7,6 @@ export async function GET(req: Request) {
   try {
     await connectDB();
 
-    // ✅ AUTH
     const token = req.headers.get("authorization")?.split(" ")[1];
     const decoded = verifyToken(token || "");
 
@@ -26,14 +25,14 @@ export async function GET(req: Request) {
           },
         },
       },
-      {
-        $sort: { createdAt: -1 },
-      },
+
+      { $sort: { createdAt: -1 } },
+
       {
         $group: {
           _id: "$effectiveChatId",
           lastMessage: { $first: "$message" },
-          lastTime: { $first: "$createdAt" }, // 🔥 IMPORTANT FIX
+          lastTime: { $first: "$createdAt" },
           unread: {
             $sum: {
               $cond: [
@@ -50,12 +49,38 @@ export async function GET(req: Request) {
           },
         },
       },
+
+      // 🔥 JOIN USER COLLECTION
       {
-        $sort: { lastTime: -1 }, // 🔥 FIXED SORT
+        $lookup: {
+          from: "users", // ⚠️ must match Mongo collection name
+          localField: "_id",
+          foreignField: "_id",
+          as: "userData",
+        },
       },
+
+      {
+        $unwind: {
+          path: "$userData",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      {
+        $project: {
+          _id: 1,
+          lastMessage: 1,
+          lastTime: 1,
+          unread: 1,
+          email: "$userData.email", // ✅ THIS IS THE FIX
+        },
+      },
+
+      { $sort: { lastTime: -1 } },
     ]);
 
-    console.log("✅ USERS FOUND:", users.length);
+    console.log("✅ USERS WITH EMAIL:", users.length);
 
     return NextResponse.json({ users });
 

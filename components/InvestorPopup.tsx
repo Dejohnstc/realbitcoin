@@ -84,7 +84,7 @@ export default function InvestorPopup() {
 
   return (
     <div
-      className={`fixed bottom-6 left-4 z-50 transition-all duration-500 ease-in-out
+      className={`fixed bottom-24 left-4 z-50 transition-all duration-500 ease-in-out
       ${
         visible
           ? "opacity-100 translate-y-0"

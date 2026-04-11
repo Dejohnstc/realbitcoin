@@ -8,6 +8,7 @@ interface UserChat {
   _id: string;
   lastMessage: string;
   unread?: number;
+  email?: string; 
 }
 
 interface Message {
@@ -214,65 +215,152 @@ export default function AdminChatPage() {
 
   const token = localStorage.getItem("admin_token");
   if (!token) return null;
+return (
+  <div className="h-screen bg-[#0B0F19] text-white flex">
 
-  return (
-    <div className="flex h-screen text-white">
-
-      {/* USERS */}
-      <div className="w-1/3 bg-[#0B0F19] border-r border-gray-800 p-3 overflow-y-auto">
-        <button
-          onClick={fetchUsers}
-          className="mb-3 bg-yellow-400 text-black px-3 py-1 rounded"
-        >
-          Load Chats
-        </button>
-
-        {users.map((u) => (
-          <div
-            key={u._id}
-            onClick={() => handleSelect(u._id)}
-            className="p-3 bg-[#131A2A] mb-2 rounded cursor-pointer hover:bg-[#1A2235] flex justify-between"
-          >
-            <div>
-              <p className="text-sm flex gap-2">
-                {u._id}
-                {onlineUsers.includes(u._id) && (
-                  <span className="text-green-400">●</span>
-                )}
-              </p>
-              <p className="text-xs text-gray-400">
-                {u.lastMessage}
-              </p>
-            </div>
-          </div>
-        ))}
+    {/* USERS (HIDDEN ON MOBILE WHEN CHAT OPEN) */}
+    <div
+      className={`${
+        selectedUser ? "hidden md:flex" : "flex"
+      } w-full md:w-[300px] border-r border-white/10 flex-col`}
+    >
+      <div className="p-4 font-semibold text-lg border-b border-white/10">
+        Chats
       </div>
 
-      {/* CHAT */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 p-4 overflow-y-auto">
-          {messages.map((m) => (
-            <div key={m._id} className="mb-2">
-              {m.message}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        {users.map((u) => {
+          const active = selectedUser === u._id;
 
-        <div className="p-3 border-t border-gray-800 flex">
+          return (
+            <div
+              key={u._id}
+              onClick={() => handleSelect(u._id)}
+              className={`p-3 rounded-xl cursor-pointer transition flex justify-between items-center
+              ${
+                active
+                  ? "bg-blue-600/20 border border-blue-500/30"
+                  : "bg-[#131A2A] hover:bg-[#1A2235]"
+              }`}
+            >
+              <div>
+                <p className="text-sm flex items-center gap-2">
+                  {u.email?.split("@")[0] || "User"}
+
+                  {onlineUsers.includes(u._id) && (
+                    <span className="w-2 h-2 bg-green-400 rounded-full" />
+                  )}
+                </p>
+
+                <p className="text-xs text-gray-400 truncate max-w-[160px]">
+                  {u.lastMessage}
+                </p>
+              </div>
+
+              {u.unread ? (
+                <span className="bg-red-500 text-xs px-2 py-0.5 rounded-full">
+                  {u.unread}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* CHAT */}
+    <div
+      className={`flex-1 flex flex-col ${
+        !selectedUser ? "hidden md:flex" : "flex"
+      }`}
+    >
+
+      {/* HEADER */}
+      <div className="p-4 border-b border-white/10 flex items-center gap-3">
+
+        {/* 🔙 BACK BUTTON (MOBILE) */}
+        <button
+          onClick={() => setSelectedUser(null)}
+          className="md:hidden text-gray-400"
+        >
+          ←
+        </button>
+
+        <p className="font-semibold">
+          {users.find((u) => u._id === selectedUser)?.email || "Chat"}
+        </p>
+      </div>
+
+      {/* MESSAGES */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.map((m) => {
+          const isAdmin = m.sender === "admin";
+
+          return (
+            <div
+              key={m._id}
+              className={`flex ${
+                isAdmin ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-[75%] px-4 py-2 rounded-xl text-sm
+                ${
+                  isAdmin
+                    ? "bg-yellow-400 text-black"
+                    : "bg-[#1A2235]"
+                }`}
+              >
+                <p>{m.message}</p>
+
+                <div className="flex justify-end text-[10px] mt-1 opacity-70 gap-1">
+                  {m.createdAt
+                    ? new Date(m.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
+
+                  {isAdmin && m.status && (
+                    <span>
+                      {m.status === "sent" && "✓"}
+                      {m.status === "delivered" && "✓✓"}
+                      {m.status === "read" && "✓✓"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {typing && (
+          <p className="text-xs text-gray-400">Typing...</p>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* INPUT */}
+      {selectedUser && (
+        <div className="p-3 border-t border-white/10 flex gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-[#131A2A] p-2 rounded"
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            placeholder="Type a message..."
+            className="flex-1 bg-[#131A2A] px-4 py-2 rounded-full outline-none"
           />
+
           <button
             onClick={sendMessage}
-            className="ml-2 bg-yellow-400 text-black px-4 rounded"
+            className="bg-yellow-400 text-black px-5 rounded-full font-medium"
           >
             Send
           </button>
         </div>
-      </div>
+      )}
     </div>
-  );
+  </div>
+);
 }
