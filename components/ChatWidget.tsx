@@ -235,7 +235,7 @@ useEffect(() => {
       {/* BUTTON */}
         <button
   onClick={handleOpen}
-  className="fixed bottom-6 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
+  className="fixed bottom-24 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
   style={{ right: "24px", left: "auto" }} // 🔥 FORCE RIGHT
       >
         💬
