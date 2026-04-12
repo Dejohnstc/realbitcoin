@@ -10,25 +10,19 @@ import {
   Unlock,
 } from "lucide-react";
 
-interface Investment {
-  _id: string;
-  amount: number;
-  profit: number;
-  status: "active" | "completed";
-}
-
 interface Earning {
   earnedSoFar: number;
   progress: number;
   targetAmount: number;
+  depositAmount: number; // 🔥 IMPORTANT
   status: "active" | "completed";
 }
 
 export default function PortfolioPage() {
-  const [investments, setInvestments] = useState<Investment[]>([]);
   const [userBalance, setUserBalance] = useState(0);
-  const [lockedBalance, setLockedBalance] = useState(0);
   const [earning, setEarning] = useState<Earning | null>(null);
+
+  const [animatedProfit, setAnimatedProfit] = useState(0);
 
   const router = useRouter();
 
@@ -45,7 +39,6 @@ export default function PortfolioPage() {
         const data = await res.json();
 
         setUserBalance(data.user?.balance || 0);
-        setLockedBalance(data.user?.lockedBalance || 0);
       } catch (err) {
         console.log(err);
       }
@@ -78,38 +71,60 @@ export default function PortfolioPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // ✅ SAFE ANIMATION (NO ERROR)
+  useEffect(() => {
+    if (!earning) return;
+
+    let frame: number;
+
+    const animate = () => {
+      setAnimatedProfit((prev) => {
+        const target = earning.earnedSoFar;
+        const diff = target - prev;
+
+        if (Math.abs(diff) < 0.5) return target;
+
+        return prev + diff * 0.08;
+      });
+
+      frame = requestAnimationFrame(animate);
+    };
+
+    frame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(frame);
+  }, [earning]);
+
   // ✅ START EARNING
   const startEarning = async () => {
     try {
       const token = localStorage.getItem("user_token");
 
-      const res = await fetch("/api/earn/start", {
+      await fetch("/api/earn/start", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error);
-      }
     } catch (err) {
       console.log(err);
     }
   };
 
-  // 🔥 ✅ FIXED TOTAL BALANCE (CRITICAL FIX)
-  const displayBalance =
+  // 🔥 ✅ FINAL CORRECT BALANCE LOGIC
+  const total =
     earning?.status === "active"
-      ? lockedBalance + (earning?.earnedSoFar || 0)
+      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
       : userBalance;
 
-  // ✅ ROI (correct)
+  const locked =
+    earning?.status === "active"
+      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
+      : 0;
+
   const roi =
-    earning && lockedBalance > 0
-      ? (earning.earnedSoFar / lockedBalance) * 100
+    earning && earning.depositAmount > 0
+      ? (earning.earnedSoFar / earning.depositAmount) * 100
       : 0;
 
   return (
@@ -128,13 +143,12 @@ export default function PortfolioPage() {
         <Wallet size={22} /> Portfolio
       </h1>
 
-      {/* TOTAL BALANCE */}
-      <div className="bg-gradient-to-r from-[#131A2A] to-[#1A2235] p-5 rounded-2xl mb-4 shadow-lg">
-
+      {/* TOTAL */}
+      <div className="bg-gradient-to-r from-[#131A2A] to-[#1A2235] p-5 rounded-2xl mb-4">
         <p className="text-gray-400 text-sm">Total Balance</p>
 
         <h2 className="text-3xl font-bold mt-1">
-          ${displayBalance.toFixed(2)}
+          ${total.toFixed(2)}
         </h2>
 
         {earning?.status === "active" && (
@@ -142,88 +156,59 @@ export default function PortfolioPage() {
             <Lock size={14} /> Earning in progress
           </p>
         )}
-
-        {earning?.status === "completed" && (
-          <p className="text-green-400 text-sm mt-2 flex items-center gap-1">
-            <Unlock size={14} /> Earnings available
-          </p>
-        )}
       </div>
 
-      {/* AVAILABLE vs LOCKED */}
-      <div className="flex justify-between mb-6 gap-3">
+      {/* AVAILABLE / LOCKED */}
+      <div className="flex gap-3 mb-6">
 
-        {/* ✅ AVAILABLE FIX */}
-        <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
+        <div className="bg-[#131A2A] p-4 rounded-xl flex-1">
           <p className="text-gray-400 text-xs">Available</p>
           <p className="font-semibold text-white">
-            {earning?.status === "active"
-              ? "$0.00"
-              : `$${userBalance.toFixed(2)}`}
+            {earning ? "$0.00" : `$${userBalance.toFixed(2)}`}
           </p>
         </div>
 
-        {/* ✅ LOCKED FIX */}
-        <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
-          <p className="text-gray-400 text-xs flex items-center gap-1">
-            🔒 Locked
-          </p>
+        <div className="bg-[#131A2A] p-4 rounded-xl flex-1">
+          <p className="text-gray-400 text-xs">🔒 Locked</p>
           <p className="font-semibold text-yellow-400">
-            {earning?.status === "active"
-              ? `$${lockedBalance.toFixed(2)}`
-              : "$0.00"}
+            ${locked.toFixed(2)}
           </p>
         </div>
 
       </div>
 
-      {/* LOCK MESSAGE */}
-      {lockedBalance > 0 && earning?.status === "active" && (
-        <p className="text-yellow-400 text-xs mb-4">
-          🔒 Your funds are locked in earning
-        </p>
-      )}
+      {/* EARN */}
+      <div className="bg-[#131A2A] p-5 rounded-2xl mb-6">
 
-      {/* EARN CARD */}
-      <div className="bg-[#131A2A] p-5 rounded-2xl mb-6 shadow-lg border border-gray-800">
-
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-gray-400 text-sm">Earn Balance</p>
-          <TrendingUp className="text-green-400" size={18} />
-        </div>
+        <p className="text-gray-400 text-sm">Earn Balance</p>
 
         <h2 className="text-2xl font-bold text-green-400">
-          +${(earning?.earnedSoFar || 0).toFixed(2)}
+          +${animatedProfit.toFixed(2)}
         </h2>
 
         <p className="text-sm text-gray-400 mt-1">
           ROI: {roi.toFixed(2)}%
         </p>
 
-        <div className="mt-4 h-2 bg-[#0B0F19] rounded-full">
+        <div className="mt-4 h-2 bg-black rounded-full">
           <div
             className="h-full bg-green-400"
-            style={{ width: `${earning?.progress || 0}%` }}
+            style={{
+              width: `${earning?.progress || 0}%`,
+              transition: "width 0.5s ease",
+            }}
           />
         </div>
 
-        {/* START BUTTON */}
         {!earning && userBalance > 0 && (
           <button
             onClick={startEarning}
-            className="mt-4 w-full bg-yellow-400 text-black py-2 rounded-xl font-semibold"
+            className="mt-4 w-full bg-yellow-400 text-black py-2 rounded-xl"
           >
             Start Earning
           </button>
         )}
       </div>
-
-      {/* EMPTY */}
-      {userBalance === 0 && lockedBalance === 0 && (
-        <div className="bg-[#131A2A] p-6 rounded-xl text-center text-gray-400">
-          No balance available
-        </div>
-      )}
     </div>
   );
 }
