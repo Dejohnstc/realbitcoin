@@ -19,32 +19,55 @@ export default function WithdrawPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
   const [message, setMessage] = useState("");
 
+  // 🔥 NEW
+  const [earningActive, setEarningActive] = useState(false);
+
   const feeRate = 0.02;
   const fee = Number(amount || 0) * feeRate;
   const receive = Number(amount || 0) - fee;
 
-  // ✅ FETCH BALANCE (UNCHANGED)
+  // ✅ FETCH USER + EARNING
   useEffect(() => {
-    const fetchBalance = async () => {
+    const loadData = async () => {
       const token = localStorage.getItem("user_token");
 
-      const res = await fetch("/api/user", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
+      try {
+        const [userRes, earnRes] = await Promise.all([
+          fetch("/api/user/me", {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+          }),
+          fetch("/api/earn/status", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-      const data = await res.json();
-      if (res.ok) setBalance(data.balance || 0);
+        const userData = await userRes.json();
+        const earnData = await earnRes.json();
+
+        if (userRes.ok) setBalance(userData.user?.balance || 0);
+
+        if (earnData.earning?.status === "active") {
+          setEarningActive(true);
+        } else {
+          setEarningActive(false);
+        }
+
+      } catch (err) {
+        console.log(err);
+      }
     };
 
-    fetchBalance();
+    loadData();
   }, []);
 
-  // ✅ WITHDRAW FUNCTION (UNCHANGED)
+  // ✅ WITHDRAW FUNCTION
   const handleWithdraw = async () => {
     const token = localStorage.getItem("user_token");
+
+    if (earningActive) {
+      return setMessage("Withdrawal locked while trading is active");
+    }
 
     if (!wallet) return setMessage("Enter wallet address");
     if (!amount || Number(amount) <= 0)
@@ -91,7 +114,7 @@ export default function WithdrawPage() {
   return (
     <div className="pt-2">
 
-      {/* ✅ TOP BAR (FIXED ALIGNMENT) */}
+      {/* TOP BAR */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Withdraw</h2>
 
@@ -103,8 +126,14 @@ export default function WithdrawPage() {
         </button>
       </div>
 
-      {/* ✅ FULL WIDTH CARD (FIXED) */}
       <div className="bg-[#131A2A] rounded-2xl p-5 w-full">
+
+        {/* 🔥 LOCK NOTICE */}
+        {earningActive && (
+          <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm text-center">
+            ⏳ Withdrawal is locked while trading is active
+          </div>
+        )}
 
         {/* COIN */}
         <div className="mb-4">
@@ -136,7 +165,6 @@ export default function WithdrawPage() {
                 <option value="ERC20">ERC20</option>
               </>
             )}
-
             {coin === "BTC" && <option value="BTC">BTC</option>}
             {coin === "ETH" && <option value="ERC20">ERC20</option>}
           </select>
@@ -197,14 +225,22 @@ export default function WithdrawPage() {
         {/* BUTTON */}
         <button
           onClick={handleWithdraw}
-          disabled={status === "loading" || status === "success"}
+          disabled={
+            status === "loading" ||
+            status === "success" ||
+            earningActive
+          }
           className={`w-full py-3 rounded-xl font-semibold transition ${
             status === "success"
               ? "bg-green-500 text-black"
+              : earningActive
+              ? "bg-gray-700 text-gray-400 cursor-not-allowed"
               : "bg-yellow-400 text-black"
           }`}
         >
-          {status === "loading"
+          {earningActive
+            ? "Locked (Trading Active)"
+            : status === "loading"
             ? "Processing..."
             : status === "success"
             ? "Withdrawal Submitted"
