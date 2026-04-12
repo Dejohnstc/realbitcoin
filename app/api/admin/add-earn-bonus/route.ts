@@ -28,18 +28,32 @@ export async function POST(req: Request) {
       );
     }
 
-    const { userId, amount } = await req.json();
+    // 🔥 NOW USING EMAIL
+    const { email, amount } = await req.json();
 
-    // ✅ VALIDATION (VERY IMPORTANT)
-    if (!userId || typeof amount !== "number" || amount <= 0) {
+    if (!email || typeof amount !== "number" || amount <= 0) {
       return NextResponse.json(
         { error: "Invalid input" },
         { status: 400 }
       );
     }
 
+    // 🔥 NORMALIZE EMAIL (IMPORTANT)
+    const cleanEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: cleanEmail,
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
     const earning = await Earning.findOne({
-      userId,
+      userId: user._id,
       status: "active",
     });
 
@@ -53,18 +67,16 @@ export async function POST(req: Request) {
     // ✅ ADD BONUS
     earning.earnedSoFar += amount;
 
-    // OPTIONAL: update lastNotifiedAmount to avoid duplicate profit alerts
     earning.lastNotifiedAmount =
       (earning.lastNotifiedAmount || 0) + amount;
 
     await earning.save();
 
-    // 🔥 SYSTEM NOTIFICATION (BONUS)
+    // 🔔 NOTIFICATION
     await Notification.create({
-      userId: userId.toString(),
+      userId: user._id.toString(),
       type: "system",
       message: "🎁 Trading bonus received",
-
       meta: {
         amount,
       },
