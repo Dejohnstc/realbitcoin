@@ -27,12 +27,12 @@ interface Earning {
 export default function PortfolioPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [userBalance, setUserBalance] = useState(0);
-  const [lockedBalance, setLockedBalance] = useState(0); // ✅ NEW
+  const [lockedBalance, setLockedBalance] = useState(0);
   const [earning, setEarning] = useState<Earning | null>(null);
 
   const router = useRouter();
 
-  // ✅ FETCH USER (UPDATED)
+  // ✅ FETCH USER
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -45,7 +45,7 @@ export default function PortfolioPage() {
         const data = await res.json();
 
         setUserBalance(data.user?.balance || 0);
-        setLockedBalance(data.user?.lockedBalance || 0); // ✅ FIX
+        setLockedBalance(data.user?.lockedBalance || 0);
       } catch (err) {
         console.log(err);
       }
@@ -100,12 +100,15 @@ export default function PortfolioPage() {
     }
   };
 
-  // ✅ FIXED TOTAL BALANCE
+  // 🔥 ✅ FIXED TOTAL BALANCE (CRITICAL FIX)
   const displayBalance =
-    userBalance + lockedBalance + (earning?.earnedSoFar || 0);
+    earning?.status === "active"
+      ? lockedBalance + (earning?.earnedSoFar || 0)
+      : userBalance;
 
+  // ✅ ROI (correct)
   const roi =
-    lockedBalance > 0 && earning
+    earning && lockedBalance > 0
       ? (earning.earnedSoFar / lockedBalance) * 100
       : 0;
 
@@ -147,29 +150,35 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      {/* 🔥 AVAILABLE vs LOCKED */}
+      {/* AVAILABLE vs LOCKED */}
       <div className="flex justify-between mb-6 gap-3">
 
+        {/* ✅ AVAILABLE FIX */}
         <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
           <p className="text-gray-400 text-xs">Available</p>
           <p className="font-semibold text-white">
-            ${userBalance.toFixed(2)}
+            {earning?.status === "active"
+              ? "$0.00"
+              : `$${userBalance.toFixed(2)}`}
           </p>
         </div>
 
+        {/* ✅ LOCKED FIX */}
         <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
           <p className="text-gray-400 text-xs flex items-center gap-1">
             🔒 Locked
           </p>
           <p className="font-semibold text-yellow-400">
-            ${lockedBalance.toFixed(2)}
+            {earning?.status === "active"
+              ? `$${lockedBalance.toFixed(2)}`
+              : "$0.00"}
           </p>
         </div>
 
       </div>
 
       {/* LOCK MESSAGE */}
-      {lockedBalance > 0 && (
+      {lockedBalance > 0 && earning?.status === "active" && (
         <p className="text-yellow-400 text-xs mb-4">
           🔒 Your funds are locked in earning
         </p>
