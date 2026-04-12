@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Wallet,
   TrendingUp,
   Lock,
-  Unlock,
 } from "lucide-react";
 
 interface Earning {
   earnedSoFar: number;
   progress: number;
   targetAmount: number;
-  depositAmount: number; // 🔥 IMPORTANT
+  depositAmount: number;
   status: "active" | "completed";
 }
 
@@ -22,9 +21,14 @@ export default function PortfolioPage() {
   const [userBalance, setUserBalance] = useState(0);
   const [earning, setEarning] = useState<Earning | null>(null);
 
-  const [animatedProfit, setAnimatedProfit] = useState(0);
+  const [displayValue, setDisplayValue] = useState(0);
+  const [isUp, setIsUp] = useState(true);
 
   const router = useRouter();
+  const frameRef = useRef<number | null>(null);
+  const [trades, setTrades] = useState<
+  { id: number; text: string; type: "buy" | "sell" }[]
+>([]);
 
   // ✅ FETCH USER
   useEffect(() => {
@@ -37,7 +41,6 @@ export default function PortfolioPage() {
         });
 
         const data = await res.json();
-
         setUserBalance(data.user?.balance || 0);
       } catch (err) {
         console.log(err);
@@ -47,6 +50,41 @@ export default function PortfolioPage() {
     loadUser();
   }, []);
 
+  useEffect(() => {
+  if (!earning) return;
+
+  let id = 0;
+
+  const coins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
+
+  const interval = setInterval(() => {
+    const isBuy = Math.random() > 0.4;
+
+    const amount = (Math.random() * 500 + 20).toFixed(2);
+    const coin = coins[Math.floor(Math.random() * coins.length)];
+
+   const trade: {
+  id: number;
+  type: "buy" | "sell";
+  text: string;
+} = {
+  id: id++,
+  type: isBuy ? "buy" : "sell",
+  text: `${isBuy ? "Buy" : "Sell"} ${coin} ${
+    isBuy ? "+" : "-"
+  }$${amount}`,
+};
+
+    setTrades((prev) => [...prev.slice(-5), trade]);
+
+    // auto remove after 5s
+    setTimeout(() => {
+      setTrades((prev) => prev.filter((t) => t.id !== trade.id));
+    }, 5000);
+  }, 2000);
+
+  return () => clearInterval(interval);
+}, [earning]);
   // ✅ FETCH EARNING
   useEffect(() => {
     const loadEarning = async () => {
@@ -58,7 +96,6 @@ export default function PortfolioPage() {
         });
 
         const data = await res.json();
-
         setEarning(data.earning || null);
       } catch (err) {
         console.log(err);
@@ -71,31 +108,56 @@ export default function PortfolioPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // ✅ SAFE ANIMATION (NO ERROR)
+  // 🔥 BASE REAL VALUE
+  const realTotal =
+    earning?.status === "active"
+      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
+      : userBalance;
+
+  // 🔥 SAFE TRADING SIMULATION
   useEffect(() => {
     if (!earning) return;
 
-    let frame: number;
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+
+    let current = realTotal;
 
     const animate = () => {
-      setAnimatedProfit((prev) => {
-        const target = earning.earnedSoFar;
-        const diff = target - prev;
+      const change = current * (Math.random() * 0.01 - 0.005);
+      const next = current + change;
 
-        if (Math.abs(diff) < 0.5) return target;
+      setDisplayValue(next);
+      setIsUp(next > current);
 
-        return prev + diff * 0.08;
-      });
+      current = next;
 
-      frame = requestAnimationFrame(animate);
+      frameRef.current = requestAnimationFrame(animate);
     };
 
-    frame = requestAnimationFrame(animate);
+    frameRef.current = requestAnimationFrame(animate);
 
-    return () => cancelAnimationFrame(frame);
-  }, [earning]);
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [realTotal, earning]);
 
-  // ✅ START EARNING
+  // fallback
+  useEffect(() => {
+    if (!earning) setDisplayValue(userBalance);
+  }, [earning, userBalance]);
+
+  // 🔥 LOCKED
+  const locked =
+    earning?.status === "active"
+      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
+      : 0;
+
+  const roi =
+    earning && earning.depositAmount > 0
+      ? (earning.earnedSoFar / earning.depositAmount) * 100
+      : 0;
+
+  // ✅ START
   const startEarning = async () => {
     try {
       const token = localStorage.getItem("user_token");
@@ -110,22 +172,6 @@ export default function PortfolioPage() {
       console.log(err);
     }
   };
-
-  // 🔥 ✅ FINAL CORRECT BALANCE LOGIC
-  const total =
-    earning?.status === "active"
-      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
-      : userBalance;
-
-  const locked =
-    earning?.status === "active"
-      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
-      : 0;
-
-  const roi =
-    earning && earning.depositAmount > 0
-      ? (earning.earnedSoFar / earning.depositAmount) * 100
-      : 0;
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
@@ -144,16 +190,21 @@ export default function PortfolioPage() {
       </h1>
 
       {/* TOTAL */}
-      <div className="bg-gradient-to-r from-[#131A2A] to-[#1A2235] p-5 rounded-2xl mb-4">
-        <p className="text-gray-400 text-sm">Total Balance</p>
+      <div className="bg-gradient-to-br from-[#131A2A] to-[#1A2235] p-6 rounded-2xl mb-5 shadow-xl border border-gray-800">
 
-        <h2 className="text-3xl font-bold mt-1">
-          ${total.toFixed(2)}
+        <p className="text-gray-400 text-sm mb-1">Total Balance</p>
+
+        <h2
+          className={`text-3xl font-bold transition-all duration-300 ${
+            isUp ? "text-green-400" : "text-red-400"
+          }`}
+        >
+          ${displayValue.toFixed(2)}
         </h2>
 
         {earning?.status === "active" && (
-          <p className="text-yellow-400 text-sm mt-2 flex items-center gap-1">
-            <Lock size={14} /> Earning in progress
+          <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
+            <Lock size={12} /> Live trading simulation active
           </p>
         )}
       </div>
@@ -161,36 +212,43 @@ export default function PortfolioPage() {
       {/* AVAILABLE / LOCKED */}
       <div className="flex gap-3 mb-6">
 
-        <div className="bg-[#131A2A] p-4 rounded-xl flex-1">
-          <p className="text-gray-400 text-xs">Available</p>
-          <p className="font-semibold text-white">
+        <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
+          <p className="text-gray-400 text-xs flex items-center gap-1">
+            <Wallet size={12} /> Available
+          </p>
+          <p className="font-semibold text-white mt-1">
             {earning ? "$0.00" : `$${userBalance.toFixed(2)}`}
           </p>
         </div>
 
-        <div className="bg-[#131A2A] p-4 rounded-xl flex-1">
-          <p className="text-gray-400 text-xs">🔒 Locked</p>
-          <p className="font-semibold text-yellow-400">
+        <div className="bg-[#131A2A] p-4 rounded-xl flex-1 border border-gray-800">
+          <p className="text-gray-400 text-xs flex items-center gap-1">
+            <Lock size={12} /> Locked
+          </p>
+          <p className="font-semibold text-yellow-400 mt-1">
             ${locked.toFixed(2)}
           </p>
         </div>
 
       </div>
 
-      {/* EARN */}
-      <div className="bg-[#131A2A] p-5 rounded-2xl mb-6">
+      {/* EARN CARD */}
+      <div className="bg-[#131A2A] p-5 rounded-2xl mb-6 border border-gray-800 shadow-lg">
 
-        <p className="text-gray-400 text-sm">Earn Balance</p>
+        <div className="flex justify-between items-center mb-2">
+          <p className="text-gray-400 text-sm">Earn Balance</p>
+          <TrendingUp className="text-green-400" size={18} />
+        </div>
 
         <h2 className="text-2xl font-bold text-green-400">
-          +${animatedProfit.toFixed(2)}
+          +${earning?.earnedSoFar.toFixed(2) || "0.00"}
         </h2>
 
-        <p className="text-sm text-gray-400 mt-1">
-          ROI: {roi.toFixed(2)}%
+        <p className="text-sm text-gray-400 mt-1 flex items-center gap-1">
+          <TrendingUp size={12} /> ROI: {roi.toFixed(2)}%
         </p>
 
-        <div className="mt-4 h-2 bg-black rounded-full">
+        <div className="mt-4 h-2 bg-black rounded-full overflow-hidden">
           <div
             className="h-full bg-green-400"
             style={{
@@ -203,11 +261,28 @@ export default function PortfolioPage() {
         {!earning && userBalance > 0 && (
           <button
             onClick={startEarning}
-            className="mt-4 w-full bg-yellow-400 text-black py-2 rounded-xl"
+            className="mt-4 w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-black py-2 rounded-xl font-semibold shadow-md hover:opacity-90 transition"
           >
             Start Earning
           </button>
         )}
+        <div className="fixed bottom-24 right-3 z-50 space-y-2">
+
+  {trades.map((trade) => (
+    <div
+      key={trade.id}
+      className={`px-3 py-2 rounded-lg text-xs shadow-lg backdrop-blur-md border
+      ${
+        trade.type === "buy"
+          ? "bg-green-500/10 text-green-400 border-green-500/20"
+          : "bg-red-500/10 text-red-400 border-red-500/20"
+      } animate-slideUp`}
+    >
+      {trade.text}
+    </div>
+  ))}
+
+</div>
       </div>
     </div>
   );

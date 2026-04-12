@@ -4,6 +4,32 @@ import { NextResponse } from "next/server";
 import User from "@/models/User";
 import Earning from "@/models/Earning";
 
+// 🔥 GENERATE 7 RANDOM PROFITS THAT SUM TO TARGET
+function generateDailyProfits(target: number): number[] {
+  const days = 7;
+  const profits: number[] = [];
+
+  let remaining = target;
+
+  for (let i = 0; i < days - 1; i++) {
+    // random between 5% - 25% of remaining
+    const min = remaining * 0.05;
+    const max = remaining * 0.25;
+
+    let value = Math.random() * (max - min) + min;
+
+    value = Math.floor(value); // keep clean numbers
+
+    profits.push(value);
+    remaining -= value;
+  }
+
+  // last day = remaining (ensures exact total)
+  profits.push(Math.max(0, Math.floor(remaining)));
+
+  return profits;
+}
+
 export async function POST(req: Request) {
   try {
     await connectDB();
@@ -57,16 +83,25 @@ export async function POST(req: Request) {
       Date.now() + 7 * 24 * 60 * 60 * 1000
     );
 
-    // ✅ CREATE EARNING
+    // 🔥 GENERATE DAILY PROFITS
+    const dailyProfits = generateDailyProfits(targetAmount);
+
+    // ✅ CREATE EARNING (UPDATED)
     await Earning.create({
       userId: user._id,
       depositAmount,
       targetAmount,
+
+      dailyProfits, // 🔥 NEW
+      currentDay: 0,
+      lastCreditedDay: -1,
+      lastCreditTime: startTime,
+
       startTime,
       endTime,
     });
 
-    // 🔒 LOCK FUNDS (CRITICAL FIX)
+    // 🔒 LOCK FUNDS
     user.lockedBalance = depositAmount;
     user.balance = 0;
 

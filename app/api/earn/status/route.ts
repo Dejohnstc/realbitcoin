@@ -29,66 +29,83 @@ export async function GET(req: Request) {
     }
 
     const now = Date.now();
-    const start = new Date(earning.startTime).getTime();
-    const end = new Date(earning.endTime).getTime();
+    const lastCredit = earning.lastCreditTime
+      ? new Date(earning.lastCreditTime).getTime()
+      : 0;
 
-    const progress = Math.min((now - start) / (end - start), 1);
+    const ONE_DAY = 24 * 60 * 60 * 1000;
 
-    const earned = earning.targetAmount * progress;
+    // 🔥 DETERMINE CURRENT DAY (0 → 6)
+    const dayIndex = Math.floor(
+      (now - new Date(earning.startTime).getTime()) / ONE_DAY
+    );
 
-    // 🔥 PROFIT NOTIFICATION
-    const lastNotified = earning.lastNotifiedAmount || 0;
+    earning.currentDay = Math.min(dayIndex, 6);
 
-    if (earned - lastNotified >= 50) {
-      await Notification.create({
-        userId: earning.userId.toString(),
-        type: "system",
-        message: "New profit added to your earnings",
-        meta: {
-          amount: Math.floor(earned),
-        },
-      });
+    // 🔥 CREDIT ONLY ONCE PER DAY
+    if (
+      earning.currentDay > earning.lastCreditedDay &&
+      now - lastCredit >= ONE_DAY
+    ) {
+      const profit = earning.dailyProfits[earning.currentDay] || 0;
 
-      earning.lastNotifiedAmount = earned;
-    }
+      // 🔥 UPDATE EARNINGS
+      earning.earnedSoFar += profit;
+      earning.lastCreditedDay = earning.currentDay;
+      earning.lastCreditTime = new Date();
 
-    // 🔓 COMPLETE + UNLOCK
-    if (progress >= 1 && earning.status !== "completed") {
-      earning.status = "completed";
-      earning.earnedSoFar = earning.targetAmount;
-
-      // 🔥 GET USER
+      // 🔥 UPDATE USER BALANCE
       const user = await User.findById(earning.userId);
 
       if (user) {
-        // 🔓 UNLOCK FUNDS + ADD PROFIT
-        user.balance += earning.targetAmount;
-        user.lockedBalance = 0;
-
+        user.balance += profit;
         await user.save();
       }
 
-      // 🔔 NOTIFICATION
+      // 🔔 DAILY PROFIT NOTIFICATION
+      await Notification.create({
+        userId: earning.userId.toString(),
+        type: "system",
+        message: "Daily trading profit added",
+        meta: {
+          amount: profit,
+        },
+      });
+    }
+
+    // 🔓 COMPLETE AFTER DAY 6
+    if (earning.currentDay >= 6 && earning.status !== "completed") {
+      earning.status = "completed";
+
+      const user = await User.findById(earning.userId);
+
+      if (user) {
+        user.lockedBalance = 0;
+        await user.save();
+      }
+
       await Notification.create({
         userId: earning.userId.toString(),
         type: "system",
         message:
-          "Earnings completed. Your balance has been unlocked.",
-
+          "Investment completed. Your full earnings are now available.",
         meta: {
           amount: earning.targetAmount,
         },
       });
     }
 
-    // ✅ SAVE EARNING
     await earning.save();
 
     return NextResponse.json({
       earning: {
         ...earning.toObject(),
-        earnedSoFar: earned,
-        progress: progress * 100,
+
+        depositAmount: earning.depositAmount,
+        earnedSoFar: earning.earnedSoFar,
+
+        // 🔥 PROGRESS BASED ON DAYS
+        progress: ((earning.currentDay + 1) / 7) * 100,
       },
     });
 

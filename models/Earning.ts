@@ -15,8 +15,13 @@ export interface IEarning extends Document {
 
   lastUpdated: Date;
 
-  // 🔥 NEW (IMPORTANT FOR NOTIFICATIONS)
   lastNotifiedAmount: number;
+
+  // 🔥 NEW FIELDS (DAILY SYSTEM)
+  dailyProfits: number[];
+  currentDay: number;
+  lastCreditedDay: number;
+  lastCreditTime?: Date;
 
   createdAt: Date;
   updatedAt: Date;
@@ -28,7 +33,7 @@ const earningSchema: Schema<IEarning> = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true, // ✅ faster queries
+      index: true,
     },
 
     depositAmount: {
@@ -50,7 +55,7 @@ const earningSchema: Schema<IEarning> = new Schema(
       type: String,
       enum: ["active", "completed"],
       default: "active",
-      index: true, // ✅ fast filtering
+      index: true,
     },
 
     startTime: {
@@ -68,10 +73,29 @@ const earningSchema: Schema<IEarning> = new Schema(
       default: Date.now,
     },
 
-    // 🔥 NEW FIELD (CRITICAL)
     lastNotifiedAmount: {
       type: Number,
       default: 0,
+    },
+
+    // 🔥 NEW DAILY SYSTEM
+    dailyProfits: {
+      type: [Number],
+      default: [],
+    },
+
+    currentDay: {
+      type: Number,
+      default: 0,
+    },
+
+    lastCreditedDay: {
+      type: Number,
+      default: -1,
+    },
+
+    lastCreditTime: {
+      type: Date,
     },
   },
   {
