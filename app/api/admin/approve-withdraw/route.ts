@@ -71,23 +71,24 @@ export async function POST(req: Request): Promise<NextResponse> {
 
       withdraw.status = "approved";
 
-      // 🔥 GUARANTEED BALANCE DEDUCTION
+      // 🔥 BALANCE DEDUCTION
       user.balance -= withdraw.amount;
       await user.save({ session });
 
       console.log("✅ New balance after withdrawal:", user.balance);
 
-      // 🔥 SAFE EMAIL (non-blocking)
+      // 🔥 EMAIL
       sendWithdrawEmail(user.email, withdraw.amount).catch((err) =>
         console.error("Withdraw email failed:", err)
       );
 
+      // 🔔 NOTIFICATION (✅ FIXED)
       await Notification.create(
         [
           {
-            userId: withdraw.userId.toString(),
+            userId: withdraw.userId, // ✅ NO .toString()
             type: "withdraw",
-            message: "Withdrawal processed",
+            message: `Withdrawal of $${withdraw.amount} processed`,
             meta: {
               amount: withdraw.amount,
             },
@@ -99,12 +100,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     } else {
       withdraw.status = "rejected";
 
+      // 🔔 NOTIFICATION (✅ FIXED)
       await Notification.create(
         [
           {
-            userId: withdraw.userId.toString(),
+            userId: withdraw.userId, // ✅ NO .toString()
             type: "withdraw",
-            message: "Withdrawal rejected",
+            message: `Withdrawal of $${withdraw.amount} rejected`,
             meta: {
               amount: withdraw.amount,
             },

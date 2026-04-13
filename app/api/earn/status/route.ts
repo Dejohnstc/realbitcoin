@@ -35,26 +35,24 @@ export async function GET(req: Request) {
 
     const ONE_DAY = 24 * 60 * 60 * 1000;
 
-    // 🔥 DETERMINE CURRENT DAY (0 → 6)
+    // 🔥 CURRENT DAY
     const dayIndex = Math.floor(
       (now - new Date(earning.startTime).getTime()) / ONE_DAY
     );
 
     earning.currentDay = Math.min(dayIndex, 6);
 
-    // 🔥 CREDIT ONLY ONCE PER DAY
+    // 🔥 CREDIT DAILY PROFIT
     if (
       earning.currentDay > earning.lastCreditedDay &&
       now - lastCredit >= ONE_DAY
     ) {
       const profit = earning.dailyProfits[earning.currentDay] || 0;
 
-      // 🔥 UPDATE EARNINGS
       earning.earnedSoFar += profit;
       earning.lastCreditedDay = earning.currentDay;
       earning.lastCreditTime = new Date();
 
-      // 🔥 UPDATE USER BALANCE
       const user = await User.findById(earning.userId);
 
       if (user) {
@@ -62,18 +60,18 @@ export async function GET(req: Request) {
         await user.save();
       }
 
-      // 🔔 DAILY PROFIT NOTIFICATION
+      // 🔔 NOTIFICATION (✅ FIXED)
       await Notification.create({
-        userId: earning.userId.toString(),
+        userId: earning.userId, // ✅ NO .toString()
         type: "system",
-        message: "Daily trading profit added",
+        message: `Daily trading profit of $${profit} added`,
         meta: {
           amount: profit,
         },
       });
     }
 
-    // 🔓 COMPLETE AFTER DAY 6
+    // 🔓 COMPLETE
     if (earning.currentDay >= 6 && earning.status !== "completed") {
       earning.status = "completed";
 
@@ -85,10 +83,10 @@ export async function GET(req: Request) {
       }
 
       await Notification.create({
-        userId: earning.userId.toString(),
+        userId: earning.userId, // ✅ NO .toString()
         type: "system",
         message:
-          "Investment completed. Your full earnings are now available.",
+          "Investment completed. Your earnings are now available for withdrawal.",
         meta: {
           amount: earning.targetAmount,
         },
@@ -100,11 +98,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       earning: {
         ...earning.toObject(),
-
         depositAmount: earning.depositAmount,
         earnedSoFar: earning.earnedSoFar,
-
-        // 🔥 PROGRESS BASED ON DAYS
         progress: ((earning.currentDay + 1) / 7) * 100,
       },
     });

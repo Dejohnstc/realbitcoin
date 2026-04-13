@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 NORMALIZE EMAIL (IMPORTANT)
+    // 🔥 NORMALIZE EMAIL
     const cleanEmail = email.trim().toLowerCase();
 
     const user = await User.findOne({
@@ -72,11 +72,11 @@ export async function POST(req: Request) {
 
     await earning.save();
 
-    // 🔔 NOTIFICATION
+    // 🔔 NOTIFICATION (🔥 FIXED)
     await Notification.create({
-      userId: user._id.toString(),
+      userId: user._id, // ✅ NO .toString()
       type: "system",
-      message: "🎁 Trading bonus received",
+      message: `🎁 Trading bonus of $${amount} added`,
       meta: {
         amount,
       },

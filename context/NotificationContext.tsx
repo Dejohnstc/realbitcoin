@@ -23,7 +23,7 @@ interface ApiNotification {
 interface ContextType {
   notifications: Notification[];
   markAllRead: () => void;
-  markOneRead: (id: string) => void; // ✅ ADD THIS
+  markOneRead: (id: string) => void;
 }
 
 const NotificationContext = createContext<ContextType | null>(null);
@@ -31,11 +31,16 @@ const NotificationContext = createContext<ContextType | null>(null);
 export const NotificationProvider = ({ children }: { children: React.ReactNode }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const fetchNotifications = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
+  const getToken = () =>
+    localStorage.getItem("user_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("admin_token");
 
+  const fetchNotifications = async () => {
+    const token = getToken();
+    if (!token || token === "undefined") return;
+
+    try {
       const res = await fetch("/api/notifications", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -43,46 +48,45 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         cache: "no-store",
       });
 
-      const data: { notifications?: ApiNotification[] } = await res.json();
+      const data = await res.json();
 
-      if (res.ok) {
-        const formatted: Notification[] = (data.notifications || []).map((n) => ({
-          id: n._id,
-          message: n.message,
-          read: n.read,
-          type: n.type,
-          createdAt: n.createdAt,
-        }));
+      console.log("🔥 API RESPONSE:", data);
 
-        setNotifications(formatted);
-      }
-    } catch {
-      console.log("Notification fetch failed");
+      if (!res.ok) return;
+
+      const formatted: Notification[] = (data.notifications || []).map((n: ApiNotification) => ({
+        id: n._id,
+        message: n.message,
+        read: n.read,
+        type: n.type,
+        createdAt: n.createdAt,
+      }));
+
+      setNotifications([...formatted]); // ✅ ONLY ONE SET
+
+      console.log("✅ SET NOTIFICATIONS:", formatted.length);
+    } catch (err) {
+      console.log("Notification fetch failed", err);
     }
   };
 
   useEffect(() => {
-    const load = async () => {
-      await fetchNotifications();
+    const init = () => {
+      setTimeout(fetchNotifications, 0);
     };
 
-    const timeout = setTimeout(load, 100);
+    init();
 
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 5000);
+    const interval = setInterval(fetchNotifications, 5000);
 
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
-  // ✅ MARK ALL
   const markAllRead = async () => {
-    try {
-      const token = localStorage.getItem("token");
+    const token = getToken();
+    if (!token) return;
 
+    try {
       await fetch("/api/notifications/read", {
         method: "POST",
         headers: {
@@ -98,7 +102,6 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
-  // ✅ MARK ONE (🔥 THIS IS WHAT YOU WERE MISSING)
   const markOneRead = (id: string) => {
     setNotifications((prev) =>
       prev.map((n) =>
@@ -109,7 +112,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
 
   return (
     <NotificationContext.Provider
-      value={{ notifications, markAllRead, markOneRead }} // ✅ INCLUDE IT
+      value={{ notifications, markAllRead, markOneRead }}
     >
       {children}
     </NotificationContext.Provider>

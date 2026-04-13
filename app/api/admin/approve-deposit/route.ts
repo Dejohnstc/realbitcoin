@@ -63,23 +63,24 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (action === "approve") {
       deposit.status = "approved";
 
-      // 🔥 GUARANTEED BALANCE UPDATE
+      // 🔥 UPDATE BALANCE
       user.balance += deposit.amount;
       await user.save({ session });
 
       console.log("✅ New balance:", user.balance);
 
-      // 🔥 SAFE EMAIL (DO NOT BREAK FLOW)
+      // 🔥 EMAIL
       sendDepositEmail(user.email, deposit.amount).catch((err) =>
         console.error("Email failed:", err)
       );
 
+      // 🔔 NOTIFICATION (✅ FIXED)
       await Notification.create(
         [
           {
-            userId: deposit.userId.toString(),
+            userId: deposit.userId, // ✅ NO .toString()
             type: "deposit",
-            message: "Deposit approved",
+            message: `Deposit of $${deposit.amount} approved`,
             meta: {
               amount: deposit.amount,
               coin: deposit.coin,
@@ -93,12 +94,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     } else {
       deposit.status = "rejected";
 
+      // 🔔 NOTIFICATION (✅ FIXED)
       await Notification.create(
         [
           {
-            userId: deposit.userId.toString(),
+            userId: deposit.userId, // ✅ NO .toString()
             type: "deposit",
-            message: "Deposit rejected",
+            message: `Deposit of $${deposit.amount} rejected`,
             meta: {
               amount: deposit.amount,
               coin: deposit.coin,

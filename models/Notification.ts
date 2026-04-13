@@ -1,12 +1,12 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface INotification extends Document {
-  userId: string;
+  userId: mongoose.Types.ObjectId; // 🔥 FIXED
+
   type: "deposit" | "withdraw" | "system";
   message: string;
   read: boolean;
 
-  // ✅ NEW (STRUCTURED DATA)
   meta?: {
     amount?: number;
     coin?: string;
@@ -19,7 +19,12 @@ export interface INotification extends Document {
 
 const NotificationSchema: Schema<INotification> = new Schema(
   {
-    userId: { type: String, required: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId, // 🔥 CRITICAL FIX
+      ref: "User",
+      required: true,
+      index: true,
+    },
 
     type: {
       type: String,
@@ -31,7 +36,6 @@ const NotificationSchema: Schema<INotification> = new Schema(
 
     read: { type: Boolean, default: false },
 
-    // ✅ NEW FIELD
     meta: {
       amount: { type: Number },
       coin: { type: String },
@@ -39,7 +43,7 @@ const NotificationSchema: Schema<INotification> = new Schema(
     },
   },
   {
-    timestamps: true, // ✅ createdAt + updatedAt
+    timestamps: true,
   }
 );
 
