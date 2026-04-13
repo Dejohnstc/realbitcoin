@@ -42,7 +42,10 @@ export default function DashboardPage() {
     const data = await res.json();
 
     if (res.ok && data.user) {
-      setBalance(data.user.balance);
+      const available = data.user.balance || 0;
+      const locked = data.user.lockedBalance || 0;
+
+      setBalance(available + locked); // ✅ FIXED
 
       // 🔥 keep localStorage in sync (optional but smart)
       localStorage.setItem("user", JSON.stringify(data.user));
