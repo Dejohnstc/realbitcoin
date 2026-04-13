@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [loadingMarkets, setLoadingMarkets] = useState(true);
   const [marketError, setMarketError] = useState(false);
   const [toast, setToast] = useState("");
+  const [isLocked, setIsLocked] = useState(false);
 
   const router = useRouter();
 
@@ -48,6 +49,28 @@ export default function DashboardPage() {
     }
   } catch (err) {
     console.error("Balance fetch failed", err);
+  }
+};
+
+const fetchEarningStatus = async () => {
+  const token = localStorage.getItem("user_token");
+  if (!token) return;
+
+  try {
+    const res = await fetch("/api/earning/status", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.earning) {
+      setIsLocked(data.earning.status === "active");
+    } else {
+      setIsLocked(false);
+    }
+  } catch (err) {
+    console.log("Earning status fetch failed", err);
   }
 };
 
@@ -93,16 +116,18 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+  fetchBalance();
+  fetchMarkets();
+  fetchEarningStatus(); // 🔥 ADD
+
+  const interval = setInterval(() => {
     fetchBalance();
     fetchMarkets();
+    fetchEarningStatus(); // 🔥 ADD
+  }, 20000);
 
-    const interval = setInterval(() => {
-      fetchBalance();
-      fetchMarkets();
-    }, 20000);
-
-    return () => clearInterval(interval);
-  }, []);
+  return () => clearInterval(interval);
+}, []);
 
   const handleNavigation = (item: string) => {
     switch (item) {
@@ -158,7 +183,10 @@ export default function DashboardPage() {
 
       {/* STATS */}
       <div className="grid grid-cols-2 gap-4">
-        <Card title="💰 Total Balance" value={`$${balance.toFixed(2)}`} />
+        <Card
+  title={`💰 Total Balance ${isLocked ? "🔒" : ""}`}
+  value={`$${balance.toFixed(2)}`}
+/>
         <Card title="₿ BTC Price" value={`$${btcPrice.toLocaleString()}`} />
         <Card title="📊 Active Trades" value="Live" green />
         <Card title="🟢 Market Status" value="Open" green />

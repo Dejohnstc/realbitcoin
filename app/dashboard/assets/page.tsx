@@ -14,6 +14,7 @@ interface User {
   name: string;
   email: string;
   balance: number;
+  lockedBalance?: number; // 🔥 ADD
 }
 
 interface Market {
@@ -56,7 +57,6 @@ export default function AssetsPage() {
 
     load();
 
-    // 🔥 auto refresh + flash
     const interval = setInterval(() => {
       setFlash(true);
       setTimeout(() => setFlash(false), 300);
@@ -74,7 +74,10 @@ export default function AssetsPage() {
     );
   }
 
-  const totalUSD = user.balance;
+  // 🔥 FIXED LOGIC (MATCH PORTFOLIO)
+  const available = user.balance || 0;
+  const locked = user.lockedBalance || 0;
+  const totalUSD = available + locked;
 
   const btcPrice =
     markets.find((m) => m.symbol === "btc")?.current_price || 0;
@@ -84,15 +87,15 @@ export default function AssetsPage() {
   const maskedEmail =
     user.email?.replace(/(.{3}).+(@.+)/, "$1***$2") || "user";
 
-  // 🔥 COIN ICONS
+  // 🔥 FIXED ICONS (MOBILE SAFE CDN)
   const coinIcons: Record<string, string> = {
-  btc: "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=029",
-  eth: "https://cryptologos.cc/logos/ethereum-eth-logo.png?v=029",
-  bnb: "https://cryptologos.cc/logos/bnb-bnb-logo.png?v=029",
-  sol: "https://cryptologos.cc/logos/solana-sol-logo.png?v=029",
-  usdt: "https://cryptologos.cc/logos/tether-usdt-logo.png?v=029",
-  xrp: "https://cryptologos.cc/logos/xrp-xrp-logo.png?v=029",
-};
+    btc: "https://assets.coingecko.com/coins/images/1/large/bitcoin.png",
+    eth: "https://assets.coingecko.com/coins/images/279/large/ethereum.png",
+    bnb: "https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png",
+    sol: "https://assets.coingecko.com/coins/images/4128/large/solana.png",
+    usdt: "https://assets.coingecko.com/coins/images/325/large/Tether.png",
+    xrp: "https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png",
+  };
 
   return (
     <div className="min-h-screen bg-black text-white px-4 pt-4 pb-24">
@@ -131,20 +134,21 @@ export default function AssetsPage() {
           <div>
             <p className="text-gray-400">Available</p>
             <p>
-              {hideBalance ? "****" : `${totalUSD.toFixed(2)} USD`}
+              {hideBalance ? "****" : `${available.toFixed(2)} USD`}
             </p>
           </div>
 
           <div>
             <p className="text-gray-400">In Use</p>
-            <p>0.00 USD</p>
+            <p>
+              {hideBalance ? "****" : `${locked.toFixed(2)} USD`}
+            </p>
           </div>
         </div>
       </div>
 
       {/* ACTIONS */}
       <div className="flex justify-between mb-8">
-
         {[
           {
             name: "Deposit",
@@ -189,65 +193,59 @@ export default function AssetsPage() {
             </button>
           );
         })}
-
       </div>
 
       {/* ASSETS */}
       <div className="space-y-4">
+        {markets.slice(0, 6).map((m) => {
+          const symbolKey = m.symbol?.toLowerCase().split("/")[0];
 
-        {markets.slice(0, 6).map((m) => (
-          <div
-            key={m.symbol}
-            className="flex justify-between items-center bg-[#131A2A] p-4 rounded-xl hover:bg-[#1A2235] transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
+          return (
+            <div
+              key={m.symbol}
+              className="flex justify-between items-center bg-[#131A2A] p-4 rounded-xl hover:bg-[#1A2235] transition cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
 
-            <img
-  src={
-    coinIcons[m.symbol?.toLowerCase().split("/")[0]] ||
-    "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=029"
-  }
-  alt={m.symbol}
-  className="w-7 h-7 object-contain"
-  onError={(e) => {
-    (e.currentTarget as HTMLImageElement).src =
-      "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=029";
-  }}
-/>
+                <img
+                  src={coinIcons[symbolKey] || coinIcons["btc"]}
+                  alt={m.symbol}
+                  className="w-7 h-7"
+                />
 
-              <div>
-                <p className="font-semibold">
-                  {m.symbol.toUpperCase()}
+                <div>
+                  <p className="font-semibold">
+                    {m.symbol.toUpperCase()}
+                  </p>
+
+                  <p
+                    className={`text-xs ${
+                      m.price_change_percentage_24h > 0
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {m.price_change_percentage_24h.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <p>
+                  {hideBalance
+                    ? "****"
+                    : m.current_price
+                    ? (totalUSD / m.current_price).toFixed(6)
+                    : "0.000000"}
                 </p>
 
-                <p
-                  className={`text-xs ${
-                    m.price_change_percentage_24h > 0
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {m.price_change_percentage_24h.toFixed(2)}%
+                <p className="text-xs text-gray-400">
+                  ${m.current_price?.toLocaleString() || "0.00"}
                 </p>
               </div>
             </div>
-
-           <div className="text-right">
-  <p>
-    {hideBalance
-      ? "****"
-      : m.current_price
-      ? (user.balance / m.current_price).toFixed(6)
-      : "0.000000"}
-  </p>
-
-  <p className="text-xs text-gray-400">
-    ${m.current_price?.toLocaleString() || "0.00"}
-  </p>
-</div>
-          </div>
-        ))}
-
+          );
+        })}
       </div>
 
     </div>
