@@ -96,23 +96,23 @@ useEffect(() => {
     return [...prev, msg];
   });
 
-  // 🔥 ONLY TRIGGER FOR ADMIN MESSAGES
+  // 🔥 ONLY FOR ADMIN MESSAGES
   if (msg.sender !== "admin") return;
 
   const isChatOpen = openRef.current;
 
-  // 🔥 IF CHAT CLOSED → FULL NOTIFICATION
+  // 🔊 ALWAYS PLAY SOUND
+  playSound();
+
+  // 🔥 CHAT CLOSED → FULL NOTIFICATION
   if (!isChatOpen) {
     setUnreadCount((prev) => prev + 1);
-
-    // 🔊 SOUND
-    playSound();
 
     // 🔔 TOAST
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
 
-    // 🔥 BROWSER NOTIFICATION (NEW 🔥)
+    // 🔔 BROWSER NOTIFICATION
     if ("Notification" in window) {
       if (Notification.permission === "granted") {
         new Notification("New message from support", {
@@ -122,6 +122,10 @@ useEffect(() => {
         Notification.requestPermission();
       }
     }
+  } else {
+    // 🔥 CHAT OPEN → subtle notification
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2000);
   }
 });
 
