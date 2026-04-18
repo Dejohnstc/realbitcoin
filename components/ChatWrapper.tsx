@@ -1,31 +1,33 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import ChatWidget from "./ChatWidget";
 
-// ✅ subscribe (no-op)
-function subscribe() {
-  return () => {};
-}
-
-// ✅ get snapshot (client only)
-function getSnapshot() {
-  if (typeof window === "undefined") return false;
-  return !!localStorage.getItem("user_token");
-}
-
-// ✅ server snapshot (always false)
-function getServerSnapshot() {
-  return false;
-}
-
 export default function ChatWrapper() {
-  const hasToken = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot
-  );
+  const [hasToken, setHasToken] = useState(false);
 
+  useEffect(() => {
+    const checkToken = () => {
+      const token = localStorage.getItem("user_token");
+      setHasToken(!!token);
+    };
+
+    // 🔥 initial check
+    checkToken();
+
+    // 🔥 listen for login/logout changes
+    window.addEventListener("storage", checkToken);
+
+    // 🔥 fallback polling (important for same-tab updates)
+    const interval = setInterval(checkToken, 2000);
+
+    return () => {
+      window.removeEventListener("storage", checkToken);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // 🔥 ONLY SHOW FOR LOGGED-IN USERS
   if (!hasToken) return null;
 
   return <ChatWidget />;
