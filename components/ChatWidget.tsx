@@ -26,6 +26,7 @@ export default function ChatWidget() {
   const [typing, setTyping] = useState(false);
   const [online, setOnline] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const unreadRef = useRef(0);
   const [showToast, setShowToast] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
@@ -96,7 +97,7 @@ useEffect(() => {
     return [...prev, msg];
   });
 
-  // 🔥 ONLY FOR ADMIN MESSAGES
+  // 🔥 ONLY ADMIN MESSAGES
   if (msg.sender !== "admin") return;
 
   const isChatOpen = openRef.current;
@@ -104,26 +105,21 @@ useEffect(() => {
   // 🔊 ALWAYS PLAY SOUND
   playSound();
 
-  // 🔥 CHAT CLOSED → FULL NOTIFICATION
   if (!isChatOpen) {
-    setUnreadCount((prev) => prev + 1);
+    // ✅ STORE IN REF (CRITICAL FIX)
+    unreadRef.current += 1;
+
+    // ✅ UPDATE UI
+    setUnreadCount(unreadRef.current);
 
     // 🔔 TOAST
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
-
-    // 🔔 BROWSER NOTIFICATION
-    if ("Notification" in window) {
-      if (Notification.permission === "granted") {
-        new Notification("New message from support", {
-          body: msg.message,
-        });
-      } else if (Notification.permission !== "denied") {
-        Notification.requestPermission();
-      }
-    }
   } else {
-    // 🔥 CHAT OPEN → subtle notification
+    // 🔥 RESET WHEN OPEN
+    unreadRef.current = 0;
+    setUnreadCount(0);
+
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
   }
@@ -235,110 +231,125 @@ useEffect(() => {
   };
 
   return (
-    <>
-      {/* BUTTON */}
-        <button
-  onClick={handleOpen}
-  className="fixed bottom-24 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
-  style={{ right: "24px", left: "auto" }} // 🔥 FORCE RIGHT
-      >
-        💬
+  <>
+    {/* BUTTON */}
+    <button
+      onClick={() => {
+        const next = !open;
+        setOpen(next);
 
-        {unreadCount > 0 && (
-          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow">
-            {unreadCount}
+        // 🔥 RESET unread when opening
+        if (next) {
+          unreadRef.current = 0;
+          setUnreadCount(0);
+        }
+      }}
+      className="fixed bottom-24 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
+      style={{ right: "24px", left: "auto" }}
+    >
+      💬
+
+      {unreadCount > 0 && (
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow">
+          {unreadCount}
+        </span>
+      )}
+    </button>
+
+    {/* TOAST */}
+    {showToast && (
+      <div className="fixed bottom-24 right-6 bg-black text-white px-4 py-2 rounded shadow-lg z-[9999] animate-fade-in">
+        New message from support
+      </div>
+    )}
+
+    {/* CHAT PANEL */}
+    {open && (
+      <div className="fixed bottom-0 right-0 w-full sm:w-80 h-[70vh] bg-[#131A2A] rounded-t-xl z-[9999] shadow-lg">
+
+        <div className="flex justify-between p-3 border-b border-gray-700">
+          <span className="flex items-center gap-2">
+            Live Support
+            {online && <span className="text-green-400 text-xs">●</span>}
           </span>
-        )}
-      </button>
 
-      {/* TOAST */}
-      {showToast && (
-        <div className="fixed bottom-24 right-6 bg-black text-white px-4 py-2 rounded shadow-lg z-[9999]">
-          New message received
+          <button
+            onClick={() => {
+              setOpen(false);
+            }}
+          >
+            ✕
+          </button>
         </div>
-      )}
 
-      {/* CHAT PANEL */}
-      {open && (
-        <div className="fixed bottom-0 right-0 w-full sm:w-80 h-[70vh] bg-[#131A2A] rounded-t-xl z-[9999] shadow-lg">
-
-          <div className="flex justify-between p-3 border-b border-gray-700">
-            <span className="flex items-center gap-2">
-              Live Support
-              {online && <span className="text-green-400 text-xs">●</span>}
-            </span>
-
-            <button onClick={() => setOpen(false)}>✕</button>
-          </div>
-
-          <div className="p-3 space-y-3 overflow-y-auto h-[60%]">
-            {messages.map((m) => (
-              <div
-                key={m._id}
-                className={`p-2 rounded max-w-[80%] text-sm flex flex-col ${
-                  m.sender === "user"
-                    ? "bg-yellow-400 text-black ml-auto"
-                    : "bg-gray-700 text-white"
-                }`}
-              >
-                <span>{m.message}</span>
-
-                <div className="flex justify-end items-center gap-1 mt-1 text-[10px] opacity-70">
-                  <span>{formatTime(m.createdAt)}</span>
-
-                  {m.sender === "user" && (
-                    <span className={m.status === "read" ? "text-blue-500" : ""}>
-                      {m.status === "sent" && "✓"}
-                      {m.status === "delivered" && "✓✓"}
-                      {m.status === "read" && "✓✓"}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {typing && (
-              <p className="text-xs text-gray-400">
-                Admin is typing...
-              </p>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          <div className="p-3 flex gap-2">
-            <input
-              value={input}
-              onChange={async (e) => {
-                setInput(e.target.value);
-
-                const userId = await getUserId();
-                if (!userId) return;
-
-                socketRef.current?.emit("typing", userId);
-
-                if (typingTimeoutRef.current) {
-                  clearTimeout(typingTimeoutRef.current);
-                }
-
-                typingTimeoutRef.current = setTimeout(() => {
-                  socketRef.current?.emit("stop_typing", userId);
-                }, 1000);
-              }}
-              className="flex-1 p-2 rounded bg-[#0B0F19]"
-              placeholder="Type message..."
-            />
-
-            <button
-              onClick={sendMessage}
-              className="bg-yellow-400 px-3 rounded text-black"
+        <div className="p-3 space-y-3 overflow-y-auto h-[60%]">
+          {messages.map((m) => (
+            <div
+              key={m._id}
+              className={`p-2 rounded max-w-[80%] text-sm flex flex-col ${
+                m.sender === "user"
+                  ? "bg-yellow-400 text-black ml-auto"
+                  : "bg-gray-700 text-white"
+              }`}
             >
-              Send
-            </button>
-          </div>
+              <span>{m.message}</span>
 
+              <div className="flex justify-end items-center gap-1 mt-1 text-[10px] opacity-70">
+                <span>{formatTime(m.createdAt)}</span>
+
+                {m.sender === "user" && (
+                  <span className={m.status === "read" ? "text-blue-500" : ""}>
+                    {m.status === "sent" && "✓"}
+                    {m.status === "delivered" && "✓✓"}
+                    {m.status === "read" && "✓✓"}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {typing && (
+            <p className="text-xs text-gray-400">
+              Admin is typing...
+            </p>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
-      )}
-    </>
-  );
+
+        <div className="p-3 flex gap-2">
+          <input
+            value={input}
+            onChange={async (e) => {
+              setInput(e.target.value);
+
+              const userId = await getUserId();
+              if (!userId) return;
+
+              socketRef.current?.emit("typing", userId);
+
+              if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+              }
+
+              typingTimeoutRef.current = setTimeout(() => {
+                socketRef.current?.emit("stop_typing", userId);
+              }, 1000);
+            }}
+            className="flex-1 p-2 rounded bg-[#0B0F19]"
+            placeholder="Type message..."
+          />
+
+          <button
+            onClick={sendMessage}
+            className="bg-yellow-400 px-3 rounded text-black"
+          >
+            Send
+          </button>
+        </div>
+
+      </div>
+    )}
+  </>
+);
 }
