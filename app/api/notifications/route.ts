@@ -28,7 +28,14 @@ export async function GET(req: Request) {
       );
     }
 
-    // 🔥 NOW CLEAN — ONLY OBJECTID
+    // 🔥 SAFE OBJECTID CONVERSION
+    if (!mongoose.Types.ObjectId.isValid(decoded.userId)) {
+      return NextResponse.json(
+        { error: "Invalid userId" },
+        { status: 400 }
+      );
+    }
+
     const userId = new mongoose.Types.ObjectId(decoded.userId);
 
     const notifications = await Notification.find({ userId })

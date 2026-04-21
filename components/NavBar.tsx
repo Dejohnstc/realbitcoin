@@ -16,7 +16,7 @@ export default function Navbar() {
           <div className="w-8 h-8 rounded bg-gradient-to-r from-blue-500 to-purple-500"  />
           <div>
             <h1 className="text-sm font-bold gradient-text">
-              RealBitcoin
+               CoinlyBitora
             </h1>
             <p className="text-[10px] text-gray-400">
               TRADING

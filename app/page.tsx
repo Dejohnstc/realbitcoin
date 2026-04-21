@@ -105,7 +105,7 @@ export default function Home() {
         </h2>
 
         <p className="text-gray-400 mb-8">
-          Join thousands of investors worldwide who trust RealBitcoin for their investment growth.
+          Join thousands of investors worldwide who trust  CoinlyBitora for their investment growth.
         </p>
 
         <div className="space-y-4">

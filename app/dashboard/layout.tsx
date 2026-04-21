@@ -13,7 +13,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   const getTitle = () => {
-    if (pathname === "/dashboard") return "RealBitcoin";
+    if (pathname === "/dashboard") return " CoinlyBitora";
     if (pathname.includes("deposit")) return "Deposit";
     if (pathname.includes("withdraw")) return "Withdraw";
     if (pathname.includes("history")) return "History";

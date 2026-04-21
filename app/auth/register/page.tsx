@@ -74,7 +74,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
 
         <h1 className="text-xl font-bold mb-6">
-          <span className="gradient-text">RealBitcoin</span>
+          <span className="gradient-text"> CoinlyBitora</span>
         </h1>
 
         <h2 className="text-3xl font-bold mb-2">Create Account</h2>

@@ -8,7 +8,7 @@ interface UserChat {
   _id: string;
   lastMessage: string;
   unread?: number;
-  email?: string; 
+  email?: string;
 }
 
 interface Message {
@@ -45,13 +45,13 @@ export default function AdminChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ✅ AUTH GUARD (NO setState)
+  // ✅ AUTH GUARD
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
     if (!token) router.replace("/admin/login");
   }, [router]);
 
-  // ✅ SAFE FETCH USERS
+  // ✅ FETCH USERS
   const fetchUsers = async () => {
     const token = localStorage.getItem("admin_token");
 
@@ -67,7 +67,7 @@ export default function AdminChatPage() {
     }
   };
 
-  // ✅ SAFE FETCH MESSAGES
+  // ✅ FETCH MESSAGES
   const fetchMessages = async (userId: string) => {
     const token = localStorage.getItem("admin_token");
 
@@ -79,10 +79,13 @@ export default function AdminChatPage() {
     setMessages(Array.isArray(data.messages) ? data.messages : []);
   };
 
-  // ✅ SOCKET (NO WARNINGS)
+  // 🔥 FIXED SOCKET (CRITICAL)
   useEffect(() => {
     const socket = io({ path: "/api/socket" });
     socketRef.current = socket;
+
+    // 🔥 ADMIN JOINS GLOBAL ROOM
+    socket.emit("join", "admin");
 
     socket.on("new_message", (msg: Message) => {
       setMessages((prev) => {
@@ -95,7 +98,7 @@ export default function AdminChatPage() {
         return prev;
       });
 
-      // ✅ async safe call
+      // 🔥 refresh user list (unread count)
       Promise.resolve().then(fetchUsers);
     });
 
@@ -141,7 +144,7 @@ export default function AdminChatPage() {
       if (userId === selectedUserRef.current) setTyping(false);
     });
 
-    // ✅ SAFE INITIAL LOAD
+    // 🔥 initial load
     Promise.resolve().then(fetchUsers);
 
     return () => {

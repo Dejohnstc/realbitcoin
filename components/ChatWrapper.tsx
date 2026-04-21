@@ -1,34 +1,55 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import ChatWidget from "./ChatWidget";
 
 export default function ChatWrapper() {
-  const [hasToken, setHasToken] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    const checkToken = () => {
-      const token = localStorage.getItem("user_token");
-      setHasToken(!!token);
+    const check = () => {
+      const token =
+        localStorage.getItem("user_token") ||
+        localStorage.getItem("token");
+
+      const userRaw = localStorage.getItem("user");
+
+      if (!token || !userRaw) {
+        setAllowed(false);
+        return;
+      }
+
+      try {
+        const user = JSON.parse(userRaw);
+
+        // 🔥 ONLY ALLOW NORMAL USERS
+        if (user.role !== "user") {
+          setAllowed(false);
+          return;
+        }
+
+        // 🔥 BLOCK ADMIN PAGES
+        if (pathname.startsWith("/admin")) {
+          setAllowed(false);
+          return;
+        }
+
+        setAllowed(true);
+      } catch {
+        setAllowed(false);
+      }
     };
 
-    // 🔥 initial check
-    checkToken();
+    check();
 
-    // 🔥 listen for login/logout changes
-    window.addEventListener("storage", checkToken);
+    const interval = setInterval(check, 2000);
 
-    // 🔥 fallback polling (important for same-tab updates)
-    const interval = setInterval(checkToken, 2000);
+    return () => clearInterval(interval);
+  }, [pathname]);
 
-    return () => {
-      window.removeEventListener("storage", checkToken);
-      clearInterval(interval);
-    };
-  }, []);
-
-  // 🔥 ONLY SHOW FOR LOGGED-IN USERS
-  if (!hasToken) return null;
+  if (!allowed) return null;
 
   return <ChatWidget />;
 }

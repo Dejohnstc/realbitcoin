@@ -12,9 +12,9 @@ const BASE_URL =
 export const sendOTP = async (email: string, otp: string) => {
   try {
     await resend.emails.send({
-      from: "RealBitcoin <noreply@obiresoffice.com>",
+      from: " CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
-      subject: "Your RealBitcoin Verification Code",
+      subject: "Your  CoinlyBitora Verification Code",
 
       html: `
       <div style="margin:0;padding:0;background:#0B0F19;font-family:Arial,Helvetica,sans-serif;">
@@ -28,7 +28,7 @@ export const sendOTP = async (email: string, otp: string) => {
                 <!-- LOGO -->
                 <tr>
                   <td align="center" style="padding-bottom:20px;">
-                    <h2 style="margin:0;color:#FFD700;">RealBitcoin</h2>
+                    <h2 style="margin:0;color:#FFD700;"> CoinlyBitora</h2>
                   </td>
                 </tr>
 
@@ -82,7 +82,7 @@ export const sendOTP = async (email: string, otp: string) => {
 
               <!-- FOOTER -->
               <div style="margin-top:20px;color:#6B7280;font-size:12px;">
-                © ${new Date().getFullYear()} RealBitcoin. All rights reserved.
+                © ${new Date().getFullYear()}  CoinlyBitora. All rights reserved.
               </div>
 
             </td>
@@ -105,14 +105,14 @@ export const sendOTP = async (email: string, otp: string) => {
 export async function sendWelcomeEmail(email: string): Promise<void> {
   try {
     const response = await resend.emails.send({
-      from: "RealBitcoin <noreply@obiresoffice.com>",
+      from: " CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
-      subject: "Welcome to RealBitcoin 🚀",
+      subject: "Welcome to  CoinlyBitora 🚀",
       html: `
       <div style="font-family: Arial, sans-serif; background:#0B0F19; color:white; padding:20px;">
         <div style="max-width:500px; margin:auto; background:#131A2A; padding:30px; border-radius:10px;">
           
-          <h2 style="color:#f97316; text-align:center;">Welcome to RealBitcoin</h2>
+          <h2 style="color:#f97316; text-align:center;">Welcome to  CoinlyBitora</h2>
 
           <p>Your account has been successfully verified 🎉</p>
 
@@ -132,7 +132,7 @@ export async function sendWelcomeEmail(email: string): Promise<void> {
           </div>
 
           <p style="font-size:12px; color:#666; margin-top:30px; text-align:center;">
-            RealBitcoin © 2026
+             CoinlyBitora © 2026
           </p>
 
         </div>
@@ -155,7 +155,7 @@ export async function sendDepositEmail(
 ): Promise<void> {
   try {
     const response = await resend.emails.send({
-      from: "RealBitcoin <noreply@obiresoffice.com>",
+      from: " CoinlyBitora CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
       subject: "Deposit Approved ✅",
 
@@ -171,7 +171,7 @@ export async function sendDepositEmail(
                 <!-- LOGO -->
                 <tr>
                   <td align="center" style="padding-bottom:20px;">
-                    <h2 style="margin:0;color:#FFD700;">RealBitcoin</h2>
+                    <h2 style="margin:0;color:#FFD700;"> CoinlyBitora</h2>
                   </td>
                 </tr>
 
@@ -246,7 +246,7 @@ export async function sendDepositEmail(
 
               <!-- COPYRIGHT -->
               <div style="margin-top:20px;color:#6B7280;font-size:12px;">
-                © ${new Date().getFullYear()} RealBitcoin. All rights reserved.
+                © ${new Date().getFullYear()}  CoinlyBitora. All rights reserved.
               </div>
 
             </td>
@@ -272,7 +272,7 @@ export async function sendWithdrawEmail(
 ): Promise<void> {
   try {
     const response = await resend.emails.send({
-      from: "RealBitcoin <noreply@obiresoffice.com>",
+      from: " CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
       subject: "Withdrawal Processed 💸",
       html: `

@@ -9,11 +9,11 @@ export default function Footer() {
         {/* BRAND */}
         <div>
           <h2 className="text-lg font-bold gradient-text mb-3">
-            RealBitcoin
+            CoinlyBitora
           </h2>
 
           <p className="text-gray-400 text-sm">
-            RealBitcoin is a global investment platform providing secure and reliable
+             CoinlyBitora is a global investment platform providing secure and reliable
             access to cryptocurrency, forex, and commodity trading markets.
           </p>
         </div>
@@ -35,7 +35,7 @@ export default function Footer() {
           <h3 className="font-semibold mb-3">Support</h3>
 
           <ul className="space-y-2 text-gray-400 text-sm">
-            <li>Email: support@realbitcoin.com</li>
+            <li>Email: support@CoinlyBitora.com</li>
             <li>Live Chat Available</li>
             <li>24/7 Customer Support</li>
           </ul>
@@ -58,7 +58,7 @@ export default function Footer() {
       <div className="border-t border-gray-800 mt-10 pt-6 text-center text-gray-500 text-sm">
 
         <p>
-          © 2026 RealBitcoin. All rights reserved.
+          © 2026  CoinlyBitora. All rights reserved.
         </p>
 
         <p className="mt-2 text-xs max-w-xl mx-auto text-gray-600">

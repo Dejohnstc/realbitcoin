@@ -28,7 +28,11 @@ interface ContextType {
 
 const NotificationContext = createContext<ContextType | null>(null);
 
-export const NotificationProvider = ({ children }: { children: React.ReactNode }) => {
+export const NotificationProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const getToken = () =>
@@ -38,6 +42,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
 
   const fetchNotifications = async () => {
     const token = getToken();
+
     if (!token || token === "undefined") return;
 
     try {
@@ -48,38 +53,77 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         cache: "no-store",
       });
 
-      const data = await res.json();
+      // 🔥 stop if unauthorized (no loop)
+      if (res.status === 401) return;
 
-      console.log("🔥 API RESPONSE:", data);
+      const data = await res.json();
 
       if (!res.ok) return;
 
-      const formatted: Notification[] = (data.notifications || []).map((n: ApiNotification) => ({
-        id: n._id,
-        message: n.message,
-        read: n.read,
-        type: n.type,
-        createdAt: n.createdAt,
-      }));
+      const formatted: Notification[] = (data.notifications || []).map(
+        (n: ApiNotification) => ({
+          id: n._id,
+          message: n.message,
+          read: n.read,
+          type: n.type,
+          createdAt: n.createdAt,
+        })
+      );
 
-      setNotifications([...formatted]); // ✅ ONLY ONE SET
-
-      console.log("✅ SET NOTIFICATIONS:", formatted.length);
+      setNotifications(formatted);
     } catch (err) {
       console.log("Notification fetch failed", err);
     }
   };
 
   useEffect(() => {
-    const init = () => {
-      setTimeout(fetchNotifications, 0);
+    let interval: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      const token = getToken();
+
+      // 🔥 if no token → stop everything
+      if (!token || token === "undefined") {
+        setNotifications([]);
+        if (interval) clearInterval(interval);
+        return;
+      }
+
+      // 🔥 first fetch (deferred)
+      setTimeout(() => {
+        fetchNotifications();
+      }, 0);
+
+      // 🔥 polling
+      interval = setInterval(() => {
+        const currentToken = getToken();
+
+        if (!currentToken || currentToken === "undefined") {
+          if (interval) clearInterval(interval);
+          setNotifications([]);
+          return;
+        }
+
+        fetchNotifications();
+      }, 5000);
     };
 
-    init();
+    startPolling();
 
-    const interval = setInterval(fetchNotifications, 5000);
+    // 🔥 watch token changes (logout/login)
+    const watcher = setInterval(() => {
+      const token = getToken();
 
-    return () => clearInterval(interval);
+      if (!token || token === "undefined") {
+        if (interval) clearInterval(interval);
+        setNotifications([]);
+      }
+    }, 2000);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      clearInterval(watcher);
+    };
   }, []);
 
   const markAllRead = async () => {

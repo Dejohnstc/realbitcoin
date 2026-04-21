@@ -76,7 +76,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
 
           <h1 className="text-xl font-bold mb-6 text-blue-400">
-            RealBitcoin <span className="text-sm text-gray-400">TRADING</span>
+            CoinlyBitora <span className="text-sm text-gray-400">TRADING</span>
           </h1>
 
           <h2 className="text-3xl font-bold mb-2">Welcome Back</h2>
