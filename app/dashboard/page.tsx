@@ -60,7 +60,7 @@ const fetchEarningStatus = async () => {
   if (!token) return;
 
   try {
-    const res = await fetch("/api/earning/status", {
+    const res = await fetch("/api/earn/status", {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
