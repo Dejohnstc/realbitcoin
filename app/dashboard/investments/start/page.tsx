@@ -204,7 +204,7 @@ function StartInvestmentContent() {
           <div className="bg-[#131A2A] p-4 rounded-xl mb-4">
             <p>Send {coin} to:</p>
             <p className="text-green-400 break-all mt-2">
-              TX9ExampleWalletAddress123456
+              TCR1wfohbRjb9V2deMReGD74UWhAeUt8pd
             </p>
           </div>
 

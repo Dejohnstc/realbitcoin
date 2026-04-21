@@ -28,21 +28,21 @@ export default function DepositPage() {
       name: "Tether (USDT)",
       symbol: "usdt",
       networks: [
-        { network: "TRC20", address: "TX9ExampleWalletAddress123456" },
-        { network: "ERC20", address: "0xExampleWalletAddress123456" },
-        { network: "BEP20", address: "0xe09ExampleWalletAddress123456" },
+        { network: "TRC20", address: "TCR1wfohbRjb9V2deMReGD74UWhAeUt8pd" },
+        { network: "ERC20", address: "0xf44dcb2a914dd6b5a782ca0dfd23c2d06813c853" },
+        { network: "BEP20", address: "0xf44dcb2a914dd6b5a782ca0dfd23c2d06813c853" },
       ],
     },
     {
       name: "Bitcoin (BTC)",
       symbol: "btc",
-      networks: [{ network: "BTC", address: "bc1examplewalletaddress" }],
+      networks: [{ network: "BTC", address: "16Dcw9DXiMb3i3cMDTKUvC8esEy6VGi5bi" }],
     },
     {
       name: "Ethereum (ETH)",
       symbol: "eth",
       networks: [
-        { network: "ERC20", address: "0xExampleWalletAddress123456" },
+        { network: "ERC20", address: "0xf44dcb2a914dd6b5a782ca0dfd23c2d06813c853" },
       ],
     },
   ];
