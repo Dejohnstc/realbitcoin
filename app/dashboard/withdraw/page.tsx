@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 
 type Coin = "BTC" | "USDT" | "ETH";
 type Network = "TRC20" | "ERC20" | "BTC";
+type Method = "CRYPTO" | "BANK" | "MONEYGRAM" | "MUKURU";
 
 export default function WithdrawPage() {
   const router = useRouter();
+
+  const [method, setMethod] = useState<Method>("CRYPTO");
 
   const [coin, setCoin] = useState<Coin>("USDT");
   const [network, setNetwork] = useState<Network>("TRC20");
@@ -15,18 +18,21 @@ export default function WithdrawPage() {
   const [amount, setAmount] = useState<string>("");
   const [wallet, setWallet] = useState<string>("");
 
+  // 🔥 new fields (safe)
+  const [accountName, setAccountName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [country, setCountry] = useState("");
+
   const [balance, setBalance] = useState<number>(0);
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
   const [message, setMessage] = useState("");
 
-  // 🔥 NEW
   const [earningActive, setEarningActive] = useState(false);
 
   const feeRate = 0.02;
   const fee = Number(amount || 0) * feeRate;
   const receive = Number(amount || 0) - fee;
 
-  // ✅ FETCH USER + EARNING
   useEffect(() => {
     const loadData = async () => {
       const token = localStorage.getItem("user_token");
@@ -47,12 +53,7 @@ export default function WithdrawPage() {
 
         if (userRes.ok) setBalance(userData.user?.balance || 0);
 
-        if (earnData.earning?.status === "active") {
-          setEarningActive(true);
-        } else {
-          setEarningActive(false);
-        }
-
+        setEarningActive(earnData.earning?.status === "active");
       } catch (err) {
         console.log(err);
       }
@@ -61,7 +62,6 @@ export default function WithdrawPage() {
     loadData();
   }, []);
 
-  // ✅ WITHDRAW FUNCTION
   const handleWithdraw = async () => {
     const token = localStorage.getItem("user_token");
 
@@ -69,11 +69,21 @@ export default function WithdrawPage() {
       return setMessage("Withdrawal locked while trading is active");
     }
 
-    if (!wallet) return setMessage("Enter wallet address");
     if (!amount || Number(amount) <= 0)
       return setMessage("Enter valid amount");
+
     if (Number(amount) > balance)
       return setMessage("Insufficient balance");
+
+    // 🔥 VALIDATION PER METHOD
+    if (method === "CRYPTO" && !wallet)
+      return setMessage("Enter wallet address");
+
+    if (method === "BANK" && (!accountName || !bankName || !wallet))
+      return setMessage("Enter complete bank details");
+
+    if ((method === "MONEYGRAM" || method === "MUKURU") && !accountName)
+      return setMessage("Enter full name");
 
     setStatus("loading");
     setMessage("");
@@ -88,8 +98,13 @@ export default function WithdrawPage() {
         body: JSON.stringify({
           amount: Number(amount),
           wallet,
-          coin,
-          network,
+          coin: method === "CRYPTO" ? coin : method,
+          network: method === "CRYPTO" ? network : "OFFCHAIN",
+          meta: {
+            accountName,
+            bankName,
+            country,
+          },
         }),
       });
 
@@ -104,6 +119,9 @@ export default function WithdrawPage() {
 
         setAmount("");
         setWallet("");
+        setAccountName("");
+        setBankName("");
+        setCountry("");
       }
     } catch {
       setMessage("Network error");
@@ -113,8 +131,6 @@ export default function WithdrawPage() {
 
   return (
     <div className="pt-2">
-
-      {/* TOP BAR */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Withdraw</h2>
 
@@ -128,135 +144,123 @@ export default function WithdrawPage() {
 
       <div className="bg-[#131A2A] rounded-2xl p-5 w-full">
 
-        {/* 🔥 LOCK NOTICE */}
         {earningActive && (
           <div className="mb-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm text-center">
             ⏳ Withdrawal is locked while trading is active
           </div>
         )}
 
-        {/* COIN */}
+        {/* METHOD */}
         <div className="mb-4">
-          <p className="text-sm text-gray-400 mb-1">Coin</p>
-
+          <p className="text-sm text-gray-400 mb-1">Method</p>
           <select
-            value={coin}
-            onChange={(e) => setCoin(e.target.value as Coin)}
+            value={method}
+            onChange={(e) => setMethod(e.target.value as Method)}
             className="w-full bg-[#0B0F19] p-3 rounded-xl"
           >
-            <option value="USDT">USDT</option>
-            <option value="BTC">BTC</option>
-            <option value="ETH">ETH</option>
+            <option value="CRYPTO">Crypto</option>
+            <option value="BANK">Bank Transfer</option>
+            <option value="MONEYGRAM">MoneyGram / Western Union</option>
+            <option value="MUKURU">Mukuru</option>
           </select>
         </div>
 
-        {/* NETWORK */}
-        <div className="mb-4">
-          <p className="text-sm text-gray-400 mb-1">Network</p>
+        {/* CRYPTO */}
+        {method === "CRYPTO" && (
+          <>
+            <select
+              value={coin}
+              onChange={(e) => setCoin(e.target.value as Coin)}
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            >
+              <option value="USDT">USDT</option>
+              <option value="BTC">BTC</option>
+              <option value="ETH">ETH</option>
+            </select>
 
-          <select
-            value={network}
-            onChange={(e) => setNetwork(e.target.value as Network)}
-            className="w-full bg-[#0B0F19] p-3 rounded-xl"
-          >
-            {coin === "USDT" && (
-              <>
-                <option value="TRC20">TRC20</option>
-                <option value="ERC20">ERC20</option>
-              </>
-            )}
-            {coin === "BTC" && <option value="BTC">BTC</option>}
-            {coin === "ETH" && <option value="ERC20">ERC20</option>}
-          </select>
-        </div>
+            <select
+              value={network}
+              onChange={(e) => setNetwork(e.target.value as Network)}
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            >
+              {coin === "USDT" && (
+                <>
+                  <option value="TRC20">TRC20</option>
+                  <option value="ERC20">ERC20</option>
+                </>
+              )}
+              {coin === "BTC" && <option value="BTC">BTC</option>}
+              {coin === "ETH" && <option value="ERC20">ERC20</option>}
+            </select>
 
-        {/* WALLET */}
-        <div className="mb-4">
-          <p className="text-sm text-gray-400 mb-1">Wallet Address</p>
+            <input
+              value={wallet}
+              onChange={(e) => setWallet(e.target.value)}
+              placeholder="Wallet Address"
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            />
+          </>
+        )}
 
-          <input
-            value={wallet}
-            onChange={(e) => setWallet(e.target.value)}
-            placeholder="Enter address"
-            className="w-full bg-[#0B0F19] p-3 rounded-xl"
-          />
-        </div>
+        {/* BANK */}
+        {method === "BANK" && (
+          <>
+            <input
+              placeholder="Account Name"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            />
+            <input
+              placeholder="Bank Name"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            />
+            <input
+              placeholder="Account Number"
+              value={wallet}
+              onChange={(e) => setWallet(e.target.value)}
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            />
+          </>
+        )}
+
+        {/* MONEYGRAM / MUKURU */}
+        {(method === "MONEYGRAM" || method === "MUKURU") && (
+          <>
+            <input
+              placeholder="Full Name"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            />
+            <input
+              placeholder="Country / Phone"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+            />
+          </>
+        )}
 
         {/* AMOUNT */}
-        <div className="mb-4">
-          <div className="flex justify-between text-sm text-gray-400 mb-1">
-            <span>Amount</span>
-            <span>Balance: ${balance.toFixed(2)}</span>
-          </div>
-
-          <div className="flex items-center bg-[#0B0F19] rounded-xl">
-            <input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              type="number"
-              placeholder="Enter amount"
-              className="flex-1 p-3 bg-transparent outline-none"
-            />
-
-            <button
-              onClick={() => setAmount(balance.toString())}
-              className="px-3 text-yellow-400 text-sm"
-            >
-              MAX
-            </button>
-          </div>
-        </div>
-
-        {/* INFO */}
-        <div className="bg-[#0B0F19] p-3 rounded-xl text-sm mb-4">
-          <div className="flex justify-between mb-1">
-            <span className="text-gray-400">Fee</span>
-            <span>${fee.toFixed(2)}</span>
-          </div>
-
-          <div className="flex justify-between">
-            <span className="text-gray-400">You will receive</span>
-            <span className="text-green-400">
-              ${receive > 0 ? receive.toFixed(2) : "0.00"}
-            </span>
-          </div>
-        </div>
+        <input
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Amount"
+          className="w-full bg-[#0B0F19] p-3 rounded-xl mb-3"
+        />
 
         {/* BUTTON */}
         <button
           onClick={handleWithdraw}
-          disabled={
-            status === "loading" ||
-            status === "success" ||
-            earningActive
-          }
-          className={`w-full py-3 rounded-xl font-semibold transition ${
-            status === "success"
-              ? "bg-green-500 text-black"
-              : earningActive
-              ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-              : "bg-yellow-400 text-black"
-          }`}
+          className="w-full py-3 bg-yellow-400 text-black rounded-xl"
         >
-          {earningActive
-            ? "Locked (Trading Active)"
-            : status === "loading"
-            ? "Processing..."
-            : status === "success"
-            ? "Withdrawal Submitted"
-            : "Withdraw"}
+          Withdraw
         </button>
 
-        {/* MESSAGE */}
-        {message && (
-          <p
-            className={`mt-3 text-sm text-center ${
-              status === "success" ? "text-green-400" : "text-red-400"
-            }`}
-          >
-            {message}
-          </p>
-        )}
+        {message && <p className="mt-3 text-center">{message}</p>}
       </div>
     </div>
   );

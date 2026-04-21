@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { countries } from "@/lib/countries";
+import Select from "react-select";
+import { countryOptions } from "@/lib/countryOptions"; // ✅ FIXED
+import type { CountryOption } from "@/lib/countryOptions"; // ✅ FIXED
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -60,9 +62,7 @@ export default function RegisterPage() {
         return alert(data.error || "Registration failed");
       }
 
-      // ✅ GO TO VERIFY PAGE
       router.push(`/auth/verify?email=${form.email}`);
-
     } catch {
       setLoading(false);
       alert("Something went wrong");
@@ -106,19 +106,39 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* COUNTRY */}
-          <select
-            value={form.country}
-            onChange={(e) => handleChange("country", e.target.value)}
-            className="w-full p-3 rounded-xl input-glass"
-          >
-            <option value="">Select country</option>
-            {countries.map((c) => (
-              <option key={c} value={c} className="text-black">
-                {c}
-              </option>
-            ))}
-          </select>
+          {/* ✅ COUNTRY (FULLY FIXED) */}
+          <Select
+            options={countryOptions}
+            placeholder="Select country"
+            onChange={(selected: CountryOption | null) =>
+              handleChange("country", selected?.value || "")
+            }
+            className="text-black"
+            styles={{
+              control: (base) => ({
+                ...base,
+                backgroundColor: "#0B0F19",
+                borderRadius: "12px",
+                border: "none",
+                padding: "4px",
+              }),
+              menu: (base) => ({
+                ...base,
+                backgroundColor: "#131A2A",
+                color: "white",
+              }),
+              singleValue: (base) => ({
+                ...base,
+                color: "white",
+              }),
+            }}
+            formatOptionLabel={(option: CountryOption) => (
+              <div className="flex items-center gap-2">
+                <span>{option.flag}</span>
+                <span>{option.label}</span>
+              </div>
+            )}
+          />
 
           {/* PASSWORD */}
           <div className="relative">
@@ -175,7 +195,7 @@ export default function RegisterPage() {
             {loading ? "Creating..." : "Create Account"}
           </button>
 
-          {/* LOGIN LINK */}
+          {/* LOGIN */}
           <div className="text-center text-sm text-gray-400">
             Already have an account?{" "}
             <span

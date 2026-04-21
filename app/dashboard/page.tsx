@@ -133,28 +133,35 @@ const fetchEarningStatus = async () => {
 }, []);
 
   const handleNavigation = (item: string) => {
-    switch (item) {
-      case "Deposit Funds":
-        router.push("/dashboard/deposit");
-        break;
-      case "Withdraw Funds":
-        router.push("/dashboard/withdraw");
-        break;
-      case "Investment Plans":
-        router.push("/dashboard/investments");
-        break;
-      case "My Portfolio":
-        router.push("/dashboard/portfolio");
-        break;
-      case "Live Markets":
-        router.push("/dashboard/livemarket");
-        break;
-      case "Settings":
-        router.push("/dashboard/settings");
-        break;
-    }
-  };
+  switch (item) {
+    case "Deposit Funds":
+      router.push("/dashboard/deposit");
+      break;
+    case "Withdraw Funds":
+      router.push("/dashboard/withdraw");
+      break;
+    case "Investment Plans":
+      router.push("/dashboard/investments");
+      break;
+    case "My Portfolio":
+      router.push("/dashboard/portfolio");
+      break;
+    case "Live Markets":
+      router.push("/dashboard/livemarket");
+      break;
+    case "Settings":
+      router.push("/dashboard/settings");
+      break;
 
+    // ✅ NEW
+    case "Contact Support":
+      window.open(
+        "https://wa.me/2348078417869",
+        "_blank"
+      );
+      break;
+  }
+};
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
 
@@ -274,6 +281,7 @@ const fetchEarningStatus = async () => {
           ["📁", "My Portfolio"],
           ["📈", "Live Markets"],
           ["⚙️", "Settings"],
+          ["🟢", "Contact Support Via WhatsApp"],
         ].map(([icon, item]) => (
           <div
             key={item}
