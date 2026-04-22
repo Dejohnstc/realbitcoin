@@ -99,31 +99,32 @@ export default function ChatWidget() {
 
       socket.on("new_message", (msg: Chat) => {
   setMessages((prev) => {
+    // ❌ prevent duplicates
     if (prev.find((m) => m._id === msg._id)) return prev;
+
     return [...prev, msg];
   });
 
-  if (msg.sender !== "admin") return;
+  // 🔥 ONLY COUNT VALID NEW ADMIN MESSAGE
+  const isAdminMessage = msg.sender === "admin";
+  const isUnread = msg.status !== "read";
 
-  playSound();
+  if (isAdminMessage && isUnread) {
+    // 🔥 only count if chat is closed
+    if (!openRef.current) {
+      unreadRef.current += 1;
+      setUnreadCount(unreadRef.current);
+    }
 
-  // 🔥 ALWAYS increment first
-  unreadRef.current += 1;
+    playSound();
 
-  // 🔥 ONLY reset if open
-  if (openRef.current) {
-    unreadRef.current = 0;
-  }
-
-  setUnreadCount(unreadRef.current);
-
-  // 🔥 toast
-  if (!openRef.current) {
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    // toast
+    if (!openRef.current) {
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
   }
 });
-
       socket.on("message_delivered", () => {
         setMessages((prev) =>
           prev.map((m) =>
