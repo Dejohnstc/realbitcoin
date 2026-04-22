@@ -18,6 +18,7 @@ export async function GET(req: Request) {
     }
 
     const users = await Chat.aggregate([
+      // 🔥 NORMALIZE chatId / userId
       {
         $addFields: {
           effectiveChatId: {
@@ -28,11 +29,14 @@ export async function GET(req: Request) {
 
       { $sort: { createdAt: -1 } },
 
+      // 🔥 GROUP BY USER
       {
         $group: {
           _id: "$effectiveChatId",
           lastMessage: { $first: "$message" },
           lastTime: { $first: "$createdAt" },
+
+          // 🔥 UNREAD COUNT (ADMIN SIDE)
           unread: {
             $sum: {
               $cond: [
@@ -50,11 +54,31 @@ export async function GET(req: Request) {
         },
       },
 
-      // 🔥 JOIN USER COLLECTION
+      // 🔥 CONVERT TO OBJECTID (CRITICAL FIX)
+      {
+        $addFields: {
+          userObjectId: {
+            $cond: [
+              { $eq: [{ $type: "$_id" }, "objectId"] },
+              "$_id",
+              {
+                $convert: {
+                  input: "$_id",
+                  to: "objectId",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            ],
+          },
+        },
+      },
+
+      // 🔥 JOIN USERS COLLECTION
       {
         $lookup: {
-          from: "users", // ⚠️ must match Mongo collection name
-          localField: "_id",
+          from: "users",
+          localField: "userObjectId",
           foreignField: "_id",
           as: "userData",
         },
@@ -67,20 +91,24 @@ export async function GET(req: Request) {
         },
       },
 
+      // 🔥 FINAL SHAPE
       {
         $project: {
           _id: 1,
           lastMessage: 1,
           lastTime: 1,
           unread: 1,
-          email: "$userData.email", // ✅ THIS IS THE FIX
+
+          email: "$userData.email",
+          name: "$userData.name",
+          profileImage: "$userData.profileImage",
         },
       },
 
       { $sort: { lastTime: -1 } },
     ]);
 
-    console.log("✅ USERS WITH EMAIL:", users.length);
+    console.log("✅ USERS WITH FULL DATA:", users.length);
 
     return NextResponse.json({ users });
 

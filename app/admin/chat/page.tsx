@@ -6,9 +6,15 @@ import { useRouter } from "next/navigation";
 
 interface UserChat {
   _id: string;
-  lastMessage: string;
-  unread?: number;
+
   email?: string;
+  name?: string;
+  profileImage?: string;
+
+  lastMessage?: string;
+  lastTime?: string;
+
+  unread?: number;
 }
 
 interface Message {
@@ -222,7 +228,7 @@ export default function AdminChatPage() {
 return (
   <div className="h-screen bg-[#0B0F19] text-white flex">
 
-    {/* USERS (HIDDEN ON MOBILE WHEN CHAT OPEN) */}
+    {/* USERS */}
     <div
       className={`${
         selectedUser ? "hidden md:flex" : "flex"
@@ -240,31 +246,50 @@ return (
             <div
               key={u._id}
               onClick={() => handleSelect(u._id)}
-              className={`p-3 rounded-xl cursor-pointer transition flex justify-between items-center
-              ${
+              className={`p-3 rounded-xl cursor-pointer transition flex justify-between items-center ${
                 active
                   ? "bg-blue-600/20 border border-blue-500/30"
                   : "bg-[#131A2A] hover:bg-[#1A2235]"
               }`}
             >
-              <div>
-                <p className="text-sm flex items-center gap-2">
-  {u.email
-    ? u.email.length > 20
-      ? u.email.slice(0, 20) + "..."
-      : u.email
-    : "No Email"}
+              {/* 🔥 LEFT SIDE */}
+              <div className="flex items-center gap-3">
 
-                  {onlineUsers.includes(u._id) && (
-                    <span className="w-2 h-2 bg-green-400 rounded-full" />
+                {/* AVATAR */}
+                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                  {u.profileImage ? (
+                    <img
+                      src={u.profileImage}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-sm font-bold">
+                      {u.email ? u.email[0].toUpperCase() : "U"}
+                    </span>
                   )}
-                </p>
+                </div>
 
-                <p className="text-xs text-gray-400 truncate max-w-[160px]">
-                  {u.lastMessage}
-                </p>
+                {/* NAME + EMAIL */}
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold flex items-center gap-2">
+                    {u.name || u.email?.split("@")[0] || "User"}
+
+                    {onlineUsers.includes(u._id) && (
+                      <span className="w-2 h-2 bg-green-400 rounded-full" />
+                    )}
+                  </span>
+
+                  <span className="text-xs text-gray-400 truncate max-w-[140px]">
+                    {u.email || "No Email"}
+                  </span>
+
+                  <span className="text-xs text-gray-500 truncate max-w-[140px]">
+                    {u.lastMessage}
+                  </span>
+                </div>
               </div>
 
+              {/* 🔴 UNREAD */}
               {u.unread ? (
                 <span className="bg-red-500 text-xs px-2 py-0.5 rounded-full">
                   {u.unread}
@@ -282,11 +307,10 @@ return (
         !selectedUser ? "hidden md:flex" : "flex"
       }`}
     >
-
       {/* HEADER */}
       <div className="p-4 border-b border-white/10 flex items-center gap-3">
 
-        {/* 🔙 BACK BUTTON (MOBILE) */}
+        {/* BACK */}
         <button
           onClick={() => setSelectedUser(null)}
           className="md:hidden text-gray-400"
@@ -294,9 +318,38 @@ return (
           ←
         </button>
 
-        <p className="font-semibold">
-         {users.find((u) => u._id === selectedUser)?.email || "No Email"}
-        </p>
+        {(() => {
+          const user = users.find((u) => u._id === selectedUser);
+
+          return (
+            <div className="flex items-center gap-3">
+
+              {/* AVATAR */}
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                {user?.profileImage ? (
+                  <img
+                    src={user.profileImage}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-sm font-bold">
+                    {user?.email ? user.email[0].toUpperCase() : "U"}
+                  </span>
+                )}
+              </div>
+
+              {/* NAME + EMAIL */}
+              <div className="flex flex-col">
+                <span className="font-semibold text-sm">
+                  {user?.name || user?.email?.split("@")[0] || "User"}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {user?.email || "No Email"}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* MESSAGES */}
@@ -312,8 +365,7 @@ return (
               }`}
             >
               <div
-                className={`max-w-[75%] px-4 py-2 rounded-xl text-sm
-                ${
+                className={`max-w-[75%] px-4 py-2 rounded-xl text-sm ${
                   isAdmin
                     ? "bg-yellow-400 text-black"
                     : "bg-[#1A2235]"
@@ -362,7 +414,7 @@ return (
 
           <button
             onClick={sendMessage}
-            className="bg-yellow-400 text-black px-5 rounded-full font-medium"
+            className="bg-yellow-400 text-black px-5 rounded-full font-medium hover:bg-yellow-300 transition"
           >
             Send
           </button>

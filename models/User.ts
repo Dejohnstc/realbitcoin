@@ -14,7 +14,6 @@ export interface IUser extends Document {
   password?: string;
 
   balance: number;
-
   lockedBalance: number;
 
   role: "user" | "admin";
@@ -31,7 +30,6 @@ export interface IUser extends Document {
   isVerified: boolean;
   isSuspended: boolean;
 
-  // 🔥 NEW (VERY IMPORTANT)
   multiplier: number;
   durationDays: number;
 
@@ -53,7 +51,15 @@ const NotificationSchema = new Schema<INotifications>(
 
 const UserSchema: Schema<IUser> = new Schema(
   {
-    email: { type: String, required: true, unique: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,   // 🔥 FIX
+      trim: true,        // 🔥 FIX
+      index: true,       // 🔥 FIX
+    },
+
     password: { type: String },
 
     balance: {
@@ -74,7 +80,11 @@ const UserSchema: Schema<IUser> = new Schema(
 
     name: { type: String, default: "" },
     country: { type: String, default: "" },
-    profileImage: { type: String, default: "" },
+
+    profileImage: {
+      type: String,
+      default: null, // 🔥 better than ""
+    },
 
     notifications: {
       type: NotificationSchema,
@@ -85,18 +95,19 @@ const UserSchema: Schema<IUser> = new Schema(
     otpExpires: { type: Date },
 
     isVerified: { type: Boolean, default: false },
-
     isSuspended: { type: Boolean, default: false },
 
-    // 🔥 NEW CONTROL FIELDS (SAFE DEFAULTS)
+    // 🔥 RETURNS CONTROL (VALIDATED)
     multiplier: {
       type: Number,
-      default: 10, // old system behavior
+      default: 10,
+      min: 1, // 🔥 prevent 0 or negative
     },
 
     durationDays: {
       type: Number,
-      default: 7, // old system behavior
+      default: 7,
+      min: 1, // 🔥 prevent invalid duration
     },
   },
   { timestamps: true }

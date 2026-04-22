@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import Earning from "@/models/Earning"; // 🔥 NEW
 import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
@@ -15,10 +16,9 @@ type ActionBody = {
     | "suspend"
     | "unsuspend"
     | "delete"
-    | "update_returns"; // 🔥 NEW
-  amount?: number;
+    | "update_returns";
 
-  // 🔥 NEW
+  amount?: number;
   multiplier?: number;
   durationDays?: number;
 };
@@ -65,9 +65,9 @@ export async function GET(req: Request) {
     );
   }
 
-  // 🔥 INCLUDE RETURNS DATA
+  // 🔥 INCLUDE EVERYTHING NEEDED (CHAT + RETURNS)
   const users = await User.find().select(
-    "_id email balance isSuspended createdAt multiplier durationDays"
+    "_id email name profileImage balance isSuspended createdAt multiplier durationDays"
   );
 
   return NextResponse.json({ users });
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 
   switch (action) {
     case "add_balance":
-      if (!amount || amount <= 0) {
+      if (typeof amount !== "number" || amount <= 0) {
         return NextResponse.json(
           { error: "Invalid amount" },
           { status: 400 }
@@ -136,18 +136,36 @@ export async function POST(req: Request) {
       await User.findByIdAndDelete(userId);
       return NextResponse.json({ success: true });
 
-    // 🔥 NEW: UPDATE RETURNS
     case "update_returns":
-      if (!multiplier || multiplier <= 0) {
+      if (
+        typeof multiplier !== "number" ||
+        multiplier <= 0
+      ) {
         return NextResponse.json(
           { error: "Invalid multiplier" },
           { status: 400 }
         );
       }
 
-      if (!durationDays || durationDays <= 0) {
+      if (
+        typeof durationDays !== "number" ||
+        durationDays <= 0
+      ) {
         return NextResponse.json(
           { error: "Invalid duration" },
+          { status: 400 }
+        );
+      }
+
+      // 🔥 PREVENT CHANGING DURING ACTIVE EARNING
+      const active = await Earning.findOne({
+        userId,
+        status: "active",
+      });
+
+      if (active) {
+        return NextResponse.json(
+          { error: "User has active earning" },
           { status: 400 }
         );
       }
