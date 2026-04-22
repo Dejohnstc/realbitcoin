@@ -139,12 +139,17 @@ export default function ChatWidget() {
       });
 
       socket.on("message_read", () => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.sender === "user" ? { ...m, status: "read" } : m
-          )
-        );
-      });
+  setMessages((prev) =>
+    prev.map((m) =>
+      m.sender === "admin"
+        ? { ...m, status: "read", read: true }
+        : m
+    )
+  );
+
+  unreadRef.current = 0;
+  setUnreadCount(0);
+});
 
       socket.on("typing", () => setTyping(true));
       socket.on("stop_typing", () => setTyping(false));
@@ -223,23 +228,26 @@ export default function ChatWidget() {
     unreadRef.current = 0;
     setUnreadCount(0);
   };
+
   const handleOpen = async () => {
   const next = !open;
   setOpen(next);
 
   if (next) {
-    // 🔥 reset count
+    // 🔥 clear count immediately
     unreadRef.current = 0;
     setUnreadCount(0);
 
-    // 🔥 update UI messages to read
+    // 🔥 mark all admin messages as read in UI
     setMessages((prev) =>
       prev.map((m) =>
-        m.sender === "admin" ? { ...m, status: "read" } : m
+        m.sender === "admin"
+          ? { ...m, status: "read", read: true }
+          : m
       )
     );
 
-    // 🔥 sync backend
+    // 🔥 call backend
     await markAsRead();
   }
 };
