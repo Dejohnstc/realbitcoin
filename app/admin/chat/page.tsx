@@ -218,6 +218,7 @@ export default function AdminChatPage() {
 
   const token = localStorage.getItem("admin_token");
   if (!token) return null;
+
 return (
   <div className="h-screen bg-[#0B0F19] text-white flex">
 
@@ -248,7 +249,11 @@ return (
             >
               <div>
                 <p className="text-sm flex items-center gap-2">
-                  {u.email?.split("@")[0] || "User"}
+  {u.email
+    ? u.email.length > 20
+      ? u.email.slice(0, 20) + "..."
+      : u.email
+    : "No Email"}
 
                   {onlineUsers.includes(u._id) && (
                     <span className="w-2 h-2 bg-green-400 rounded-full" />
@@ -290,7 +295,7 @@ return (
         </button>
 
         <p className="font-semibold">
-          {users.find((u) => u._id === selectedUser)?.email || "Chat"}
+         {users.find((u) => u._id === selectedUser)?.email || "No Email"}
         </p>
       </div>
 
