@@ -98,26 +98,31 @@ export default function ChatWidget() {
       socket.emit("join", userId);
 
       socket.on("new_message", (msg: Chat) => {
-        setMessages((prev) => {
-          if (prev.find((m) => m._id === msg._id)) return prev;
-          return [...prev, msg];
-        });
+  setMessages((prev) => {
+    if (prev.find((m) => m._id === msg._id)) return prev;
+    return [...prev, msg];
+  });
 
-        if (msg.sender !== "admin") return;
+  if (msg.sender !== "admin") return;
 
-        playSound();
+  playSound();
 
-        if (!openRef.current) {
-          unreadRef.current += 1;
-          setUnreadCount(unreadRef.current);
+  // 🔥 ALWAYS increment first
+  unreadRef.current += 1;
 
-          setShowToast(true);
-          setTimeout(() => setShowToast(false), 3000);
-        } else {
-          unreadRef.current = 0;
-          setUnreadCount(0);
-        }
-      });
+  // 🔥 ONLY reset if open
+  if (openRef.current) {
+    unreadRef.current = 0;
+  }
+
+  setUnreadCount(unreadRef.current);
+
+  // 🔥 toast
+  if (!openRef.current) {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  }
+});
 
       socket.on("message_delivered", () => {
         setMessages((prev) =>
@@ -150,23 +155,33 @@ export default function ChatWidget() {
 
   // ✅ LOAD MESSAGES ON START
   useEffect(() => {
-    const load = async () => {
-      const token = localStorage.getItem("user_token");
-      if (!token) return;
+  const load = async () => {
+    const token = localStorage.getItem("user_token");
+    if (!token) return;
 
-      const userId = await getUserId();
-      if (!userId) return;
+    const userId = await getUserId();
+    if (!userId) return;
 
-      const res = await fetch(`/api/chat?userId=${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    const res = await fetch(`/api/chat?userId=${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      const data = await res.json();
-      setMessages(data.messages || []);
-    };
+    const data = await res.json();
+    const msgs = data.messages || [];
 
-    load();
-  }, []);
+    setMessages(msgs);
+
+    // 🔥 FIX: calculate unread properly
+    const unread = msgs.filter(
+      (m: Chat) => m.sender === "admin" && m.status !== "read"
+    ).length;
+
+    unreadRef.current = unread;
+    setUnreadCount(unread);
+  };
+
+  load();
+}, []);
 
   const markAsRead = async () => {
     const token = localStorage.getItem("user_token");
