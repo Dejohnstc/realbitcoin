@@ -8,6 +8,7 @@ import {
   Users,
   MessageCircle,
   Gift,
+  TrendingUp, // 🔥 NEW ICON
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -116,7 +117,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* 🔥 NEW: BONUS */}
+        {/* BONUS */}
         <div
           onClick={() => router.push("/admin/earn-bonus")}
           className="p-5 bg-gradient-to-r from-[#131A2A] to-[#1A2235] rounded-xl cursor-pointer hover:scale-[1.02] transition flex items-center gap-4 border border-yellow-400/20"
@@ -126,6 +127,20 @@ export default function AdminPage() {
             <h2 className="font-semibold">Add Bonus</h2>
             <p className="text-sm text-gray-400">
               Reward users with trading bonuses
+            </p>
+          </div>
+        </div>
+
+        {/* 🔥 NEW: RETURNS CONTROL */}
+        <div
+          onClick={() => router.push("/admin/returns-control")}
+          className="p-5 bg-gradient-to-r from-[#131A2A] to-[#1A2235] rounded-xl cursor-pointer hover:scale-[1.02] transition flex items-center gap-4 border border-green-400/20"
+        >
+          <TrendingUp className="text-green-400" />
+          <div>
+            <h2 className="font-semibold">Returns Control</h2>
+            <p className="text-sm text-gray-400">
+              Set user profit multiplier & duration
             </p>
           </div>
         </div>

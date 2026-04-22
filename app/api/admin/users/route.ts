@@ -10,12 +10,25 @@ type DecodedToken = {
 
 type ActionBody = {
   userId: string;
-  action: "add_balance" | "suspend" | "unsuspend" | "delete";
+  action:
+    | "add_balance"
+    | "suspend"
+    | "unsuspend"
+    | "delete"
+    | "update_returns"; // 🔥 NEW
   amount?: number;
+
+  // 🔥 NEW
+  multiplier?: number;
+  durationDays?: number;
 };
 
 /* ================= HELPER ================= */
-function getAdmin(req: Request): { error?: string; status?: number; adminId?: string } {
+function getAdmin(req: Request): {
+  error?: string;
+  status?: number;
+  adminId?: string;
+} {
   const authHeader = req.headers.get("authorization");
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -46,11 +59,15 @@ export async function GET(req: Request) {
   const auth = getAdmin(req);
 
   if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    return NextResponse.json(
+      { error: auth.error },
+      { status: auth.status }
+    );
   }
 
+  // 🔥 INCLUDE RETURNS DATA
   const users = await User.find().select(
-    "_id email balance isSuspended createdAt"
+    "_id email balance isSuspended createdAt multiplier durationDays"
   );
 
   return NextResponse.json({ users });
@@ -63,11 +80,14 @@ export async function POST(req: Request) {
   const auth = getAdmin(req);
 
   if (auth.error) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    return NextResponse.json(
+      { error: auth.error },
+      { status: auth.status }
+    );
   }
 
   const body: ActionBody = await req.json();
-  const { userId, action, amount } = body;
+  const { userId, action, amount, multiplier, durationDays } = body;
 
   if (!userId || !action) {
     return NextResponse.json(
@@ -93,7 +113,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 🔥 ACTIONS
   switch (action) {
     case "add_balance":
       if (!amount || amount <= 0) {
@@ -116,6 +135,26 @@ export async function POST(req: Request) {
     case "delete":
       await User.findByIdAndDelete(userId);
       return NextResponse.json({ success: true });
+
+    // 🔥 NEW: UPDATE RETURNS
+    case "update_returns":
+      if (!multiplier || multiplier <= 0) {
+        return NextResponse.json(
+          { error: "Invalid multiplier" },
+          { status: 400 }
+        );
+      }
+
+      if (!durationDays || durationDays <= 0) {
+        return NextResponse.json(
+          { error: "Invalid duration" },
+          { status: 400 }
+        );
+      }
+
+      user.multiplier = multiplier;
+      user.durationDays = durationDays;
+      break;
 
     default:
       return NextResponse.json(

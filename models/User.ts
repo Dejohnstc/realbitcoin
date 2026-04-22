@@ -15,25 +15,25 @@ export interface IUser extends Document {
 
   balance: number;
 
-  // 🔥 NEW
   lockedBalance: number;
 
   role: "user" | "admin";
 
-  // ✅ PROFILE
   name?: string;
   country?: string;
   profileImage?: string;
 
-  // ✅ NOTIFICATIONS
   notifications: INotifications;
 
   otp?: string;
   otpExpires?: Date;
 
   isVerified: boolean;
-
   isSuspended: boolean;
+
+  // 🔥 NEW (VERY IMPORTANT)
+  multiplier: number;
+  durationDays: number;
 
   createdAt: Date;
   updatedAt: Date;
@@ -61,7 +61,6 @@ const UserSchema: Schema<IUser> = new Schema(
       default: 0,
     },
 
-    // 🔥 NEW FIELD (SAFE ADD)
     lockedBalance: {
       type: Number,
       default: 0,
@@ -73,12 +72,10 @@ const UserSchema: Schema<IUser> = new Schema(
       default: "user",
     },
 
-    // ✅ PROFILE
     name: { type: String, default: "" },
     country: { type: String, default: "" },
     profileImage: { type: String, default: "" },
 
-    // ✅ NOTIFICATIONS
     notifications: {
       type: NotificationSchema,
       default: () => ({}),
@@ -90,6 +87,17 @@ const UserSchema: Schema<IUser> = new Schema(
     isVerified: { type: Boolean, default: false },
 
     isSuspended: { type: Boolean, default: false },
+
+    // 🔥 NEW CONTROL FIELDS (SAFE DEFAULTS)
+    multiplier: {
+      type: Number,
+      default: 10, // old system behavior
+    },
+
+    durationDays: {
+      type: Number,
+      default: 7, // old system behavior
+    },
   },
   { timestamps: true }
 );

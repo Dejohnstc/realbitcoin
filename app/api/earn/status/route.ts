@@ -35,12 +35,15 @@ export async function GET(req: Request) {
 
     const ONE_DAY = 24 * 60 * 60 * 1000;
 
+    // 🔥 USE DYNAMIC DAYS
+    const totalDays = earning.durationDays || 7;
+
     // 🔥 CURRENT DAY
     const dayIndex = Math.floor(
       (now - new Date(earning.startTime).getTime()) / ONE_DAY
     );
 
-    earning.currentDay = Math.min(dayIndex, 6);
+    earning.currentDay = Math.min(dayIndex, totalDays - 1);
 
     // 🔥 CREDIT DAILY PROFIT
     if (
@@ -60,9 +63,8 @@ export async function GET(req: Request) {
         await user.save();
       }
 
-      // 🔔 NOTIFICATION (✅ FIXED)
       await Notification.create({
-        userId: earning.userId, // ✅ NO .toString()
+        userId: earning.userId,
         type: "system",
         message: `Daily trading profit of $${profit} added`,
         meta: {
@@ -71,8 +73,11 @@ export async function GET(req: Request) {
       });
     }
 
-    // 🔓 COMPLETE
-    if (earning.currentDay >= 6 && earning.status !== "completed") {
+    // 🔓 COMPLETE (DYNAMIC)
+    if (
+      earning.currentDay >= totalDays - 1 &&
+      earning.status !== "completed"
+    ) {
       earning.status = "completed";
 
       const user = await User.findById(earning.userId);
@@ -83,7 +88,7 @@ export async function GET(req: Request) {
       }
 
       await Notification.create({
-        userId: earning.userId, // ✅ NO .toString()
+        userId: earning.userId,
         type: "system",
         message:
           "Investment completed. Your earnings are now available for withdrawal.",
@@ -100,7 +105,10 @@ export async function GET(req: Request) {
         ...earning.toObject(),
         depositAmount: earning.depositAmount,
         earnedSoFar: earning.earnedSoFar,
-        progress: ((earning.currentDay + 1) / 7) * 100,
+
+        // 🔥 FIXED PROGRESS
+        progress:
+          ((earning.currentDay + 1) / totalDays) * 100,
       },
     });
 

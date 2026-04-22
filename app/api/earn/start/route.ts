@@ -4,27 +4,22 @@ import { NextResponse } from "next/server";
 import User from "@/models/User";
 import Earning from "@/models/Earning";
 
-// 🔥 GENERATE 7 RANDOM PROFITS THAT SUM TO TARGET
-function generateDailyProfits(target: number): number[] {
-  const days = 7;
+// 🔥 GENERATE RANDOM PROFITS BASED ON DAYS
+function generateDailyProfits(target: number, days: number): number[] {
   const profits: number[] = [];
-
   let remaining = target;
 
   for (let i = 0; i < days - 1; i++) {
-    // random between 5% - 25% of remaining
     const min = remaining * 0.05;
     const max = remaining * 0.25;
 
     let value = Math.random() * (max - min) + min;
-
-    value = Math.floor(value); // keep clean numbers
+    value = Math.floor(value);
 
     profits.push(value);
     remaining -= value;
   }
 
-  // last day = remaining (ensures exact total)
   profits.push(Math.max(0, Math.floor(remaining)));
 
   return profits;
@@ -76,29 +71,40 @@ export async function POST(req: Request) {
       );
     }
 
-    const targetAmount = depositAmount * 10;
+    // 🔥 NEW: DYNAMIC CONFIG
+    const multiplier = user.multiplier || 10;
+    const durationDays = user.durationDays || 7;
+
+    const targetAmount = depositAmount * multiplier;
 
     const startTime = new Date();
     const endTime = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000
+      Date.now() + durationDays * 24 * 60 * 60 * 1000
     );
 
-    // 🔥 GENERATE DAILY PROFITS
-    const dailyProfits = generateDailyProfits(targetAmount);
+    // 🔥 DYNAMIC DAILY PROFITS
+    const dailyProfits = generateDailyProfits(
+      targetAmount,
+      durationDays
+    );
 
-    // ✅ CREATE EARNING (UPDATED)
+    // ✅ CREATE EARNING
     await Earning.create({
       userId: user._id,
       depositAmount,
       targetAmount,
 
-      dailyProfits, // 🔥 NEW
+      dailyProfits,
       currentDay: 0,
       lastCreditedDay: -1,
       lastCreditTime: startTime,
 
       startTime,
       endTime,
+      durationDays, // 🔥 store for reference
+      multiplier,   // 🔥 store for reference
+
+      status: "active",
     });
 
     // 🔒 LOCK FUNDS

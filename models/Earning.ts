@@ -17,11 +17,15 @@ export interface IEarning extends Document {
 
   lastNotifiedAmount: number;
 
-  // 🔥 NEW FIELDS (DAILY SYSTEM)
+  // 🔥 DAILY SYSTEM
   dailyProfits: number[];
   currentDay: number;
   lastCreditedDay: number;
   lastCreditTime?: Date;
+
+  // 🔥 NEW (CRITICAL FOR YOUR SYSTEM)
+  durationDays: number;
+  multiplier: number;
 
   createdAt: Date;
   updatedAt: Date;
@@ -78,7 +82,7 @@ const earningSchema: Schema<IEarning> = new Schema(
       default: 0,
     },
 
-    // 🔥 NEW DAILY SYSTEM
+    // 🔥 DAILY PROFITS
     dailyProfits: {
       type: [Number],
       default: [],
@@ -96,6 +100,17 @@ const earningSchema: Schema<IEarning> = new Schema(
 
     lastCreditTime: {
       type: Date,
+    },
+
+    // 🔥 NEW FIELDS (SAFE ADD)
+    durationDays: {
+      type: Number,
+      default: 7,
+    },
+
+    multiplier: {
+      type: Number,
+      default: 10,
     },
   },
   {
