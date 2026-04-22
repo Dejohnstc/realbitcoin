@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     await connectDB();
 
     const body = await req.json();
-    const chatId = body?.chatId;
+    const chatId = body?.chatId || body?.userId;
 
     if (!chatId || typeof chatId !== "string") {
       return NextResponse.json(
