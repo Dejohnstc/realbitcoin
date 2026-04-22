@@ -19,14 +19,14 @@ export async function POST(req: Request) {
 
     // 🔥 FIX: MARK USER MESSAGES AS READ
     const result = await Chat.updateMany(
-      { chatId, sender: "user", read: false },
-      {
-        $set: {
-          read: true,
-          status: "read",
-        },
-      }
-    );
+  { chatId, sender: "admin", read: false }, // ✅ FIXED
+  {
+    $set: {
+      read: true,
+      status: "read",
+    },
+  }
+);
 
     console.log("✅ READ UPDATED:", result.modifiedCount);
 
