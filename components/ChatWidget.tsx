@@ -123,6 +123,11 @@ export default function ChatWidget() {
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
+    else {
+  // 🔥 if chat already open → keep unread at 0
+  unreadRef.current = 0;
+  setUnreadCount(0);
+}
   }
 });
       socket.on("message_delivered", () => {
@@ -202,6 +207,16 @@ export default function ChatWidget() {
     unreadRef.current = 0;
     setUnreadCount(0);
   };
+  const handleOpen = async () => {
+  setOpen(true);
+
+  // 🔥 reset unread
+  unreadRef.current = 0;
+  setUnreadCount(0);
+
+  // 🔥 mark messages as read
+  await markAsRead();
+};
 
   const sendMessage = async () => {
     const token = localStorage.getItem("user_token");
@@ -248,13 +263,18 @@ export default function ChatWidget() {
     <>
       <button
         onClick={async () => {
-          const next = !open;
-          setOpen(next);
+  const next = !open;
+  setOpen(next);
 
-          if (next) {
-            await markAsRead();
-          }
-        }}
+  if (next) {
+    // 🔥 RESET UI COUNT FIRST
+    unreadRef.current = 0;
+    setUnreadCount(0);
+
+    // 🔥 THEN SYNC BACKEND
+    await markAsRead();
+  }
+}}
         className="fixed bottom-24 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
       >
         💬
