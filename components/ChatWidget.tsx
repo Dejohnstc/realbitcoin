@@ -160,7 +160,7 @@ export default function ChatWidget() {
   }, []);
 
   // ✅ LOAD MESSAGES ON START
-  useEffect(() => {
+ useEffect(() => {
   const load = async () => {
     const token = localStorage.getItem("user_token");
     if (!token) return;
@@ -175,18 +175,34 @@ export default function ChatWidget() {
     const data = await res.json();
     const msgs = data.messages || [];
 
-    setMessages(msgs);
+    // 🔥 FORCE READ IF OPEN
+    const finalMsgs = openRef.current
+      ? msgs.map((m: Chat) =>
+          m.sender === "admin" ? { ...m, status: "read" } : m
+        )
+      : msgs;
 
-    // 🔥 FIX: calculate unread properly
-    const unread = msgs.filter(
-      (m: Chat) => m.sender === "admin" && m.status !== "read"
+    setMessages(finalMsgs);
+
+    const unread = finalMsgs.filter(
+      (m: Chat) =>
+        m.sender === "admin" &&
+        m.status !== "read"
     ).length;
 
-    unreadRef.current = unread;
-    setUnreadCount(unread);
+    if (openRef.current) {
+      unreadRef.current = 0;
+      setUnreadCount(0);
+    } else {
+      unreadRef.current = unread;
+      setUnreadCount(unread);
+    }
   };
 
   load();
+
+  // ✅ ONLY cleanup allowed here
+  return () => {};
 }, []);
 
   const markAsRead = async () => {
@@ -208,14 +224,24 @@ export default function ChatWidget() {
     setUnreadCount(0);
   };
   const handleOpen = async () => {
-  setOpen(true);
+  const next = !open;
+  setOpen(next);
 
-  // 🔥 reset unread
-  unreadRef.current = 0;
-  setUnreadCount(0);
+  if (next) {
+    // 🔥 reset count
+    unreadRef.current = 0;
+    setUnreadCount(0);
 
-  // 🔥 mark messages as read
-  await markAsRead();
+    // 🔥 update UI messages to read
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.sender === "admin" ? { ...m, status: "read" } : m
+      )
+    );
+
+    // 🔥 sync backend
+    await markAsRead();
+  }
 };
 
   const sendMessage = async () => {
