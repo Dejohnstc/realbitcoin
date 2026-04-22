@@ -15,6 +15,7 @@ export async function GET() {
     if (!globalForSocket.io) {
       console.log("🟢 Initializing Socket.io...");
 
+      // 🔥 FIX: attach to global server (IMPORTANT)
       const io = new IOServer({
         path: "/api/socket",
         addTrailingSlash: false,
@@ -23,11 +24,9 @@ export async function GET() {
         },
       });
 
-      // ✅ STORE GLOBALLY
       globalForSocket.io = io;
       globalForSocket.onlineUsers = new Set<string>();
 
-      // 🔥 IMPORTANT (FIXES BACKEND EMIT)
       setIO(io);
 
       io.on("connection", (socket: Socket) => {
@@ -48,17 +47,19 @@ export async function GET() {
             "online_users",
             Array.from(globalForSocket.onlineUsers || [])
           );
+
+          console.log("👤 Joined room:", userId);
         });
 
-        // ✅ TYPING SYSTEM
+        // ✅ TYPING
         socket.on("typing", (userId: string) => {
           if (!userId) return;
-          socket.to(userId).emit("typing", userId);
+          socket.to(userId).emit("typing");
         });
 
         socket.on("stop_typing", (userId: string) => {
           if (!userId) return;
-          socket.to(userId).emit("stop_typing", userId);
+          socket.to(userId).emit("stop_typing");
         });
 
         // ✅ DISCONNECT

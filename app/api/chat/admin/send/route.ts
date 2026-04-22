@@ -32,45 +32,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
-    // ✅ SAVE MESSAGE (FIXED)
+    // ✅ SAVE MESSAGE
     const chat = new Chat({
       userId,
       chatId: userId,
       message,
       sender: "admin",
       read: false,
-      status: "sent", // 🔥 IMPORTANT FIX
+      status: "sent",
     });
 
     await chat.save();
 
     console.log("✅ ADMIN MESSAGE SAVED:", chat._id.toString());
 
-    // ✅ SOCKET EMIT
+    // ✅ CLEAN PAYLOAD (CRITICAL FIX)
+    const payload = {
+      _id: String(chat._id),
+      message: chat.message,
+      sender: chat.sender,
+      chatId: userId,
+      status: chat.status,
+      createdAt: chat.createdAt, // 🔥 THIS WAS MISSING
+    };
+
+    // ✅ SOCKET EMIT (FIXED)
     const io = getIO();
 
     if (io) {
-      io.to(userId).emit("new_message", {
-        _id: String(chat._id),
-        message: chat.message,
-        sender: chat.sender,
-        chatId: userId,
-        status: chat.status,
-      });
+      io.to(userId).emit("new_message", payload);
 
-      // 🔥 OPTIONAL: confirm delivery
+      // optional delivery event
       io.to(userId).emit("message_delivered", {
         chatId: userId,
       });
+
+      // optional admin panel broadcast
+      io.emit("new_message_admin", payload);
     } else {
       console.log("⚠️ IO NOT FOUND (ADMIN)");
     }
 
     return NextResponse.json({
-      chat: {
-        ...chat.toObject(),
-        _id: String(chat._id),
-      },
+      chat: payload,
     });
 
   } catch (error) {

@@ -28,36 +28,42 @@ export async function POST(req: Request) {
 
     const chatId = decoded.userId;
 
-    // ✅ SAFE CREATE (🔥 FIXED)
+    // ✅ SAVE MESSAGE
     const chat = new Chat({
       userId: decoded.userId,
-      chatId: chatId,
-      message: message,
+      chatId,
+      message,
       sender: "user",
       read: false,
     });
 
-    await chat.save(); // 🔥 IMPORTANT (better than create here)
+    await chat.save();
 
-    // ✅ SOCKET EMIT
+    // ✅ PREPARE CLEAN PAYLOAD (IMPORTANT)
+    const payload = {
+      _id: String(chat._id),
+      message: chat.message,
+      sender: chat.sender,
+      chatId,
+      status: "sent",
+      createdAt: chat.createdAt,
+    };
+
+    // ✅ SOCKET EMIT (FIXED PROPERLY)
     const io = getIO();
 
     if (io) {
-      io.to(chatId).emit("new_message", {
-        _id: String(chat._id),
-        message: chat.message,
-        sender: chat.sender,
-        chatId,
-      });
+      // 🔥 send to user's room (for admin panel listeners)
+      io.to(chatId).emit("new_message", payload);
+
+      // 🔥 optional global emit (admin dashboard fallback)
+      io.emit("new_message_admin", payload);
     } else {
       console.log("⚠️ IO NOT FOUND");
     }
 
     return NextResponse.json({
-      chat: {
-        ...chat.toObject(),
-        _id: String(chat._id),
-      },
+      chat: payload,
     });
 
   } catch (error) {

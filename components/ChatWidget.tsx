@@ -33,18 +33,18 @@ export default function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🔥 FIX: track open state correctly
   const openRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     openRef.current = open;
   }, [open]);
 
-useEffect(() => {
-  if ("Notification" in window && Notification.permission !== "granted") {
-    Notification.requestPermission();
-  }
-}, []);
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const playSound = () => {
     const audio = new Audio("/notification.mp3");
@@ -63,112 +63,110 @@ useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const getUserId = async (): Promise<string | null> => {
-    const token = localStorage.getItem("user_token");
-    if (!token) return null;
+ const getUserId = async (): Promise<string | null> => {
+  if (userIdRef.current) return userIdRef.current;
 
-    const res = await fetch("/api/user", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const token = localStorage.getItem("user_token");
+  if (!token) return null;
 
-    if (!res.ok) return null;
-
-    const data: UserResponse = await res.json();
-    return data.user?._id || null;
-  };
-
-  const initSocket = async () => {
-    if (socketRef.current) return;
-
-    await fetch("/api/socket");
-
-    const socket: Socket = io({
-      path: "/api/socket",
-    });
-
-    const userId = await getUserId();
-    if (!userId) return;
-
-    socket.emit("join", userId);
-
-    socket.on("new_message", (msg: Chat) => {
-  setMessages((prev) => {
-    if (prev.find((m) => m._id === msg._id)) return prev;
-    return [...prev, msg];
+  const res = await fetch("/api/user", {
+    headers: { Authorization: `Bearer ${token}` },
   });
 
-  // 🔥 ONLY ADMIN MESSAGES
-  if (msg.sender !== "admin") return;
+  if (!res.ok) return null;
 
-  const isChatOpen = openRef.current;
+  const data: UserResponse = await res.json();
+  userIdRef.current = data.user?._id || null;
 
-  // 🔊 ALWAYS PLAY SOUND
-  playSound();
+  return userIdRef.current;
+};
 
-  if (!isChatOpen) {
-    // ✅ STORE IN REF (CRITICAL FIX)
-    unreadRef.current += 1;
+  // ✅ INIT SOCKET ON LOAD (FIXED PROPERLY)
+  useEffect(() => {
+    const setup = async () => {
+      if (socketRef.current) return;
 
-    // ✅ UPDATE UI
-    setUnreadCount(unreadRef.current);
+      const userId = await getUserId();
+      if (!userId) return;
 
-    // 🔔 TOAST
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  } else {
-    // 🔥 RESET WHEN OPEN
-    unreadRef.current = 0;
-    setUnreadCount(0);
+      await fetch("/api/socket");
 
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
-  }
-});
+      const socket: Socket = io({
+        path: "/api/socket",
+      });
 
-    socket.on("message_delivered", () => {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.sender === "user"
-            ? { ...m, status: "delivered" }
-            : m
-        )
-      );
-    });
+      socket.emit("join", userId);
 
-    socket.on("message_read", () => {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.sender === "user"
-            ? { ...m, status: "read" }
-            : m
-        )
-      );
-    });
+      socket.on("new_message", (msg: Chat) => {
+        setMessages((prev) => {
+          if (prev.find((m) => m._id === msg._id)) return prev;
+          return [...prev, msg];
+        });
 
-    socket.on("typing", () => setTyping(true));
-    socket.on("stop_typing", () => setTyping(false));
+        if (msg.sender !== "admin") return;
 
-    socket.on("online_users", (users: string[]) => {
-      setOnline(users.includes(userId));
-    });
+        playSound();
 
-    socketRef.current = socket;
-  };
+        if (!openRef.current) {
+          unreadRef.current += 1;
+          setUnreadCount(unreadRef.current);
 
-  const fetchMessages = async () => {
-    const token = localStorage.getItem("user_token");
-    if (!token) return;
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        } else {
+          unreadRef.current = 0;
+          setUnreadCount(0);
+        }
+      });
 
-    const userId = await getUserId();
-    if (!userId) return;
+      socket.on("message_delivered", () => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.sender === "user" ? { ...m, status: "delivered" } : m
+          )
+        );
+      });
 
-    const res = await fetch(`/api/chat?userId=${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      socket.on("message_read", () => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.sender === "user" ? { ...m, status: "read" } : m
+          )
+        );
+      });
 
-    const data = await res.json();
-    setMessages(data.messages || []);
-  };
+      socket.on("typing", () => setTyping(true));
+      socket.on("stop_typing", () => setTyping(false));
+
+      socket.on("online_users", (users: string[]) => {
+        setOnline(users.includes(userId));
+      });
+
+      socketRef.current = socket;
+    };
+
+    setup();
+  }, []);
+
+  // ✅ LOAD MESSAGES ON START
+  useEffect(() => {
+    const load = async () => {
+      const token = localStorage.getItem("user_token");
+      if (!token) return;
+
+      const userId = await getUserId();
+      if (!userId) return;
+
+      const res = await fetch(`/api/chat?userId=${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      setMessages(data.messages || []);
+    };
+
+    load();
+  }, []);
 
   const markAsRead = async () => {
     const token = localStorage.getItem("user_token");
@@ -185,15 +183,8 @@ useEffect(() => {
       body: JSON.stringify({ chatId: userId }),
     });
 
+    unreadRef.current = 0;
     setUnreadCount(0);
-  };
-
-  const handleOpen = async () => {
-    setOpen(true);
-    setUnreadCount(0); // 🔥 reset badge immediately
-    await fetchMessages();
-    await initSocket();
-    await markAsRead();
   };
 
   const sendMessage = async () => {
@@ -204,152 +195,94 @@ useEffect(() => {
 
     const tempId = Date.now().toString();
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        _id: tempId,
-        message: input,
-        sender: "user",
-        chatId: userId,
-        status: "sent",
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+    const newMsg: Chat = {
+      _id: tempId,
+      message: input,
+      sender: "user",
+      chatId: userId,
+      status: "sent",
+      createdAt: new Date().toISOString(),
+    };
 
-    await fetch("/api/chat/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ message: input }),
-    });
+    setMessages((prev) => [...prev, newMsg]);
+
+    try {
+      await fetch("/api/chat/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message: input,
+          userId,
+        }),
+      });
+
+      socketRef.current?.emit("new_message", newMsg);
+    } catch (err) {
+      console.log("Send failed", err);
+    }
 
     socketRef.current?.emit("stop_typing", userId);
-
     setInput("");
   };
 
   return (
-  <>
-    {/* BUTTON */}
-    <button
-      onClick={() => {
-        const next = !open;
-        setOpen(next);
+    <>
+      <button
+        onClick={async () => {
+          const next = !open;
+          setOpen(next);
 
-        // 🔥 RESET unread when opening
-        if (next) {
-          unreadRef.current = 0;
-          setUnreadCount(0);
-        }
-      }}
-      className="fixed bottom-24 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
-      style={{ right: "24px", left: "auto" }}
-    >
-      💬
-
-      {unreadCount > 0 && (
-        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold shadow">
-          {unreadCount}
-        </span>
-      )}
-    </button>
-
-    {/* TOAST */}
-    {showToast && (
-      <div className="fixed bottom-24 right-6 bg-black text-white px-4 py-2 rounded shadow-lg z-[9999] animate-fade-in">
-        New message from support
-      </div>
-    )}
-
-    {/* CHAT PANEL */}
-    {open && (
-      <div className="fixed bottom-0 right-0 w-full sm:w-80 h-[70vh] bg-[#131A2A] rounded-t-xl z-[9999] shadow-lg">
-
-        <div className="flex justify-between p-3 border-b border-gray-700">
-          <span className="flex items-center gap-2">
-            Live Support
-            {online && <span className="text-green-400 text-xs">●</span>}
+          if (next) {
+            await markAsRead();
+          }
+        }}
+        className="fixed bottom-24 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
+      >
+        💬
+        {unreadCount > 0 && (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+            {unreadCount}
           </span>
+        )}
+      </button>
 
-          <button
-            onClick={() => {
-              setOpen(false);
-            }}
-          >
-            ✕
-          </button>
+      {showToast && (
+        <div className="fixed bottom-24 right-6 bg-black text-white px-4 py-2 rounded shadow-lg z-[9999]">
+          New message from support
         </div>
+      )}
 
-        <div className="p-3 space-y-3 overflow-y-auto h-[60%]">
-          {messages.map((m) => (
-            <div
-              key={m._id}
-              className={`p-2 rounded max-w-[80%] text-sm flex flex-col ${
-                m.sender === "user"
-                  ? "bg-yellow-400 text-black ml-auto"
-                  : "bg-gray-700 text-white"
-              }`}
-            >
-              <span>{m.message}</span>
+      {open && (
+        <div className="fixed bottom-0 right-0 w-full sm:w-80 h-[70vh] bg-[#131A2A] rounded-t-xl z-[9999] shadow-lg">
+          <div className="flex justify-between p-3 border-b border-gray-700">
+            <span>
+              Live Support {online && "●"}
+            </span>
+            <button onClick={() => setOpen(false)}>✕</button>
+          </div>
 
-              <div className="flex justify-end items-center gap-1 mt-1 text-[10px] opacity-70">
-                <span>{formatTime(m.createdAt)}</span>
-
-                {m.sender === "user" && (
-                  <span className={m.status === "read" ? "text-blue-500" : ""}>
-                    {m.status === "sent" && "✓"}
-                    {m.status === "delivered" && "✓✓"}
-                    {m.status === "read" && "✓✓"}
-                  </span>
-                )}
+          <div className="p-3 space-y-3 overflow-y-auto h-[60%]">
+            {messages.map((m) => (
+              <div key={m._id}>
+                <span>{m.message}</span>
               </div>
-            </div>
-          ))}
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
 
-          {typing && (
-            <p className="text-xs text-gray-400">
-              Admin is typing...
-            </p>
-          )}
-
-          <div ref={messagesEndRef} />
+          <div className="p-3 flex gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="flex-1 p-2 rounded bg-[#0B0F19]"
+            />
+            <button onClick={sendMessage}>Send</button>
+          </div>
         </div>
-
-        <div className="p-3 flex gap-2">
-          <input
-            value={input}
-            onChange={async (e) => {
-              setInput(e.target.value);
-
-              const userId = await getUserId();
-              if (!userId) return;
-
-              socketRef.current?.emit("typing", userId);
-
-              if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-              }
-
-              typingTimeoutRef.current = setTimeout(() => {
-                socketRef.current?.emit("stop_typing", userId);
-              }, 1000);
-            }}
-            className="flex-1 p-2 rounded bg-[#0B0F19]"
-            placeholder="Type message..."
-          />
-
-          <button
-            onClick={sendMessage}
-            className="bg-yellow-400 px-3 rounded text-black"
-          >
-            Send
-          </button>
-        </div>
-
-      </div>
-    )}
-  </>
-);
+      )}
+    </>
+  );
 }
