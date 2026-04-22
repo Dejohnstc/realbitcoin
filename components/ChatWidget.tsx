@@ -266,10 +266,35 @@ export default function ChatWidget() {
 
           <div className="p-3 space-y-3 overflow-y-auto h-[60%]">
             {messages.map((m) => (
-              <div key={m._id}>
-                <span>{m.message}</span>
-              </div>
-            ))}
+  <div
+    key={m._id}
+    className={`p-3 rounded-2xl max-w-[80%] text-sm flex flex-col shadow ${
+      m.sender === "user"
+        ? "bg-yellow-400 text-black ml-auto"
+        : "bg-gray-700 text-white"
+    }`}
+  >
+    <span className="break-words">{m.message}</span>
+
+    <div className="flex justify-end items-center gap-1 mt-1 text-[10px] opacity-70">
+      <span>{formatTime(m.createdAt)}</span>
+
+      {m.sender === "user" && (
+        <span className={m.status === "read" ? "text-blue-500" : ""}>
+          {m.status === "sent" && "✓"}
+          {m.status === "delivered" && "✓✓"}
+          {m.status === "read" && "✓✓"}
+        </span>
+      )}
+    </div>
+  </div>
+))}
+
+{typing && (
+  <p className="text-xs text-gray-400 italic">
+    Admin is typing...
+  </p>
+)}
             <div ref={messagesEndRef} />
           </div>
 
