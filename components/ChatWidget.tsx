@@ -262,19 +262,7 @@ export default function ChatWidget() {
   return (
     <>
       <button
-        onClick={async () => {
-  const next = !open;
-  setOpen(next);
-
-  if (next) {
-    // 🔥 RESET UI COUNT FIRST
-    unreadRef.current = 0;
-    setUnreadCount(0);
-
-    // 🔥 THEN SYNC BACKEND
-    await markAsRead();
-  }
-}}
+        onClick={handleOpen}
         className="fixed bottom-24 right-6 z-[9999] bg-yellow-400 text-black p-4 rounded-full shadow-lg"
       >
         💬
@@ -294,10 +282,18 @@ export default function ChatWidget() {
       {open && (
         <div className="fixed bottom-0 right-0 w-full sm:w-80 h-[70vh] bg-[#131A2A] rounded-t-xl z-[9999] shadow-lg">
           <div className="flex justify-between p-3 border-b border-gray-700">
-            <span>
-              Live Support {online && "●"}
-            </span>
-            <button onClick={() => setOpen(false)}>✕</button>
+            <span className="flex items-center gap-1">
+  Live Support
+  {online && <span className="text-green-400 text-xs">●</span>}
+</span>
+            <button
+  onClick={() => {
+    setOpen(false);
+    openRef.current = false; // 🔥 force sync instantly
+  }}
+>
+  ✕
+</button>
           </div>
 
           <div className="p-3 space-y-3 overflow-y-auto h-[60%]">
@@ -340,7 +336,12 @@ export default function ChatWidget() {
               onChange={(e) => setInput(e.target.value)}
               className="flex-1 p-2 rounded bg-[#0B0F19]"
             />
-            <button onClick={sendMessage}>Send</button>
+            <button
+  onClick={sendMessage}
+  className="bg-yellow-400 text-black px-3 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition"
+>
+  ➤
+</button>
           </div>
         </div>
       )}
