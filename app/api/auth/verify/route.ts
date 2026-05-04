@@ -26,12 +26,8 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // ✅ prevent re-verification
-    if (user.isVerified) {
-      return NextResponse.json({
-        message: "Account already verified",
-      });
-    }
+    // 🔥 FIX: track previous state (DO NOT BLOCK FLOW)
+    const wasVerified = user.isVerified;
 
     // ✅ clean OTP
     const cleanOtp = otp.trim();
@@ -62,17 +58,21 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // 🔥 NON-BLOCKING EMAIL (BEST PRACTICE)
-    sendWelcomeEmail(user.email)
-      .then(() => {
-        console.log("✅ Welcome email sent to:", user.email);
-      })
-      .catch((err) => {
-        console.error("❌ Welcome email failed:", err);
-      });
+    // 🔥 SEND EMAIL ONLY FIRST TIME
+    if (!wasVerified) {
+      sendWelcomeEmail(user.email)
+        .then(() => {
+          console.log("✅ Welcome email sent to:", user.email);
+        })
+        .catch((err) => {
+          console.error("❌ Welcome email failed:", err);
+        });
+    }
 
     return NextResponse.json({
-      message: "Account verified successfully",
+      message: wasVerified
+        ? "Account already verified"
+        : "Account verified successfully",
     });
 
   } catch (error) {

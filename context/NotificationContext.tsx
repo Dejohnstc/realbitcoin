@@ -40,7 +40,7 @@ export const NotificationProvider = ({
     localStorage.getItem("token") ||
     localStorage.getItem("admin_token");
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (): Promise<"STOP" | void> => {
     const token = getToken();
 
     if (!token || token === "undefined") return;
@@ -53,12 +53,15 @@ export const NotificationProvider = ({
         cache: "no-store",
       });
 
-      // 🔥 stop if unauthorized (no loop)
-      if (res.status === 401) return;
-
-      const data = await res.json();
+      if (res.status === 401) {
+        console.log("❌ Unauthorized - stopping notifications");
+        setNotifications([]);
+        return "STOP";
+      }
 
       if (!res.ok) return;
+
+      const data = await res.json();
 
       const formatted: Notification[] = (data.notifications || []).map(
         (n: ApiNotification) => ({
@@ -82,20 +85,15 @@ export const NotificationProvider = ({
     const startPolling = () => {
       const token = getToken();
 
-      // 🔥 if no token → stop everything
       if (!token || token === "undefined") {
         setNotifications([]);
-        if (interval) clearInterval(interval);
         return;
       }
 
-      // 🔥 first fetch (deferred)
-      setTimeout(() => {
-        fetchNotifications();
-      }, 0);
+      // first fetch
+      fetchNotifications();
 
-      // 🔥 polling
-      interval = setInterval(() => {
+      interval = setInterval(async () => {
         const currentToken = getToken();
 
         if (!currentToken || currentToken === "undefined") {
@@ -104,13 +102,16 @@ export const NotificationProvider = ({
           return;
         }
 
-        fetchNotifications();
+        const result = await fetchNotifications();
+
+        if (result === "STOP") {
+          if (interval) clearInterval(interval);
+        }
       }, 5000);
     };
 
     startPolling();
 
-    // 🔥 watch token changes (logout/login)
     const watcher = setInterval(() => {
       const token = getToken();
 
@@ -118,7 +119,7 @@ export const NotificationProvider = ({
         if (interval) clearInterval(interval);
         setNotifications([]);
       }
-    }, 2000);
+    }, 5000);
 
     return () => {
       if (interval) clearInterval(interval);
@@ -126,6 +127,7 @@ export const NotificationProvider = ({
     };
   }, []);
 
+  // ✅ OUTSIDE useEffect (CORRECT)
   const markAllRead = async () => {
     const token = getToken();
     if (!token) return;

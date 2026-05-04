@@ -60,22 +60,25 @@ export default function NotificationsPage() {
   }, [filtered]);
 
   const handleOpen = async (n: Notification) => {
-    setSelected(n);
-    markOneRead(n.id);
+  setSelected(n);
+  markOneRead(n.id);
 
-    try {
-      const token = localStorage.getItem("user_token");
+  try {
+    const token = localStorage.getItem("user_token");
 
-      await fetch("/api/notifications/read-one", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ id: n.id }),
-      });
-    } catch {}
-  };
+    // 🔥 FIX: stop if no token
+    if (!token) return;
+
+    await fetch("/api/notifications/read-one", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id: n.id }),
+    });
+  } catch {}
+};
 
   const getTitle = (n: Notification) => {
     if (n.type === "deposit") return "Deposit Successful";
@@ -178,9 +181,9 @@ export default function NotificationsPage() {
               {getTitle(selected)}
             </h3>
 
-            <p className="text-sm text-gray-300 mb-3">
-              {selected.message}
-            </p>
+            <p className="text-sm text-gray-300 mb-3 break-words leading-relaxed">
+  {selected.message}
+</p>
 
             {selected.meta?.amount && (
               <p className="text-green-400 font-semibold text-lg">
@@ -225,9 +228,9 @@ function Item({ n, onClick, getIcon, getTitle }: ItemProps) {
           {getTitle(n)}
         </p>
 
-        <p className="text-xs text-gray-400 truncate">
-          {n.message}
-        </p>
+        <p className="text-xs text-gray-400 line-clamp-2 break-words">
+  {n.message}
+</p>
       </div>
 
       {!n.read && (
