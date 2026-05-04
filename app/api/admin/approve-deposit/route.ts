@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import Notification from "@/models/Notification";
 import { sendDepositEmail } from "@/lib/mail";
 import mongoose from "mongoose";
+import { getIO } from "@/lib/socket"; // 🔥 NEW
 
 interface Body {
   depositId: string;
@@ -44,20 +45,14 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     if (!deposit || deposit.status !== "pending") {
       await session.abortTransaction();
-      return NextResponse.json(
-        { error: "Invalid deposit" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid deposit" }, { status: 400 });
     }
 
     const user = await User.findById(deposit.userId).session(session);
 
     if (!user || !user.email) {
       await session.abortTransaction();
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     if (action === "approve") {
@@ -67,18 +62,11 @@ export async function POST(req: Request): Promise<NextResponse> {
       user.balance += deposit.amount;
       await user.save({ session });
 
-      console.log("✅ New balance:", user.balance);
-
-      // 🔥 EMAIL
-      sendDepositEmail(user.email, deposit.amount).catch((err) =>
-        console.error("Email failed:", err)
-      );
-
-      // 🔔 NOTIFICATION (✅ FIXED)
+      // 🔔 NOTIFICATION
       await Notification.create(
         [
           {
-            userId: deposit.userId, // ✅ NO .toString()
+            userId: deposit.userId,
             type: "deposit",
             message: `Deposit of $${deposit.amount} approved`,
             meta: {
@@ -90,15 +78,13 @@ export async function POST(req: Request): Promise<NextResponse> {
         ],
         { session }
       );
-
     } else {
       deposit.status = "rejected";
 
-      // 🔔 NOTIFICATION (✅ FIXED)
       await Notification.create(
         [
           {
-            userId: deposit.userId, // ✅ NO .toString()
+            userId: deposit.userId,
             type: "deposit",
             message: `Deposit of $${deposit.amount} rejected`,
             meta: {
@@ -117,6 +103,22 @@ export async function POST(req: Request): Promise<NextResponse> {
     await session.commitTransaction();
     session.endSession();
 
+    // 🔥 AFTER COMMIT (SAFE ZONE)
+
+    if (action === "approve") {
+      try {
+        await sendDepositEmail(user.email, deposit.amount);
+      } catch (err) {
+        console.error("Email failed:", err);
+      }
+    }
+
+    // 🔥 REAL-TIME NOTIFICATION
+    const io = getIO();
+    if (io) {
+      io.to(String(deposit.userId)).emit("new_notification");
+    }
+
     return NextResponse.json({ message: "Done" });
 
   } catch (error) {
@@ -125,9 +127,6 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     console.error("❌ APPROVE DEPOSIT ERROR:", error);
 
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

@@ -14,7 +14,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const { email, otp }: VerifyBody = await req.json();
 
-    // ✅ FIX 1: normalize email (CRITICAL)
+    // ✅ normalize email
     const normalizedEmail = email.trim().toLowerCase();
 
     const user = await User.findOne({ email: normalizedEmail });
@@ -26,14 +26,14 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // ✅ prevent re-verification spam
+    // ✅ prevent re-verification
     if (user.isVerified) {
       return NextResponse.json({
         message: "Account already verified",
       });
     }
 
-    // ✅ FIX 2: trim OTP (handles spaces from input)
+    // ✅ clean OTP
     const cleanOtp = otp.trim();
 
     if (
@@ -48,6 +48,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+    // ✅ VERIFY USER
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
@@ -61,13 +62,14 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // 🔥 SAFE EMAIL SEND (non-blocking logic)
-    try {
-      await sendWelcomeEmail(user.email);
-      console.log("✅ Welcome email sent to:", user.email);
-    } catch (mailError) {
-      console.error("❌ Welcome email failed:", mailError);
-    }
+    // 🔥 NON-BLOCKING EMAIL (BEST PRACTICE)
+    sendWelcomeEmail(user.email)
+      .then(() => {
+        console.log("✅ Welcome email sent to:", user.email);
+      })
+      .catch((err) => {
+        console.error("❌ Welcome email failed:", err);
+      });
 
     return NextResponse.json({
       message: "Account verified successfully",

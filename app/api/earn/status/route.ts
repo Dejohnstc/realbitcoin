@@ -29,31 +29,29 @@ export async function GET(req: Request) {
     }
 
     const now = Date.now();
-    const lastCredit = earning.lastCreditTime
-      ? new Date(earning.lastCreditTime).getTime()
-      : 0;
+    const start = new Date(earning.startTime).getTime();
 
     const ONE_DAY = 24 * 60 * 60 * 1000;
 
-    // 🔥 USE DYNAMIC DAYS
+    // 🔥 DYNAMIC SETTINGS
     const totalDays = earning.durationDays || 7;
+    const durationMs = totalDays * ONE_DAY;
 
-    // 🔥 CURRENT DAY
-    const dayIndex = Math.floor(
-      (now - new Date(earning.startTime).getTime()) / ONE_DAY
-    );
+    const elapsed = now - start;
 
+    // 🔥 CURRENT DAY (SAFE)
+    const dayIndex = Math.floor(elapsed / ONE_DAY);
     earning.currentDay = Math.min(dayIndex, totalDays - 1);
 
-    // 🔥 CREDIT DAILY PROFIT
+    // 🔥 CREDIT DAILY PROFIT (STRICT 24H INTERVAL)
     if (
-      earning.currentDay > earning.lastCreditedDay &&
-      now - lastCredit >= ONE_DAY
+      dayIndex > earning.lastCreditedDay &&
+      elapsed >= (earning.lastCreditedDay + 1) * ONE_DAY
     ) {
-      const profit = earning.dailyProfits[earning.currentDay] || 0;
+      const profit = earning.dailyProfits[dayIndex] || 0;
 
       earning.earnedSoFar += profit;
-      earning.lastCreditedDay = earning.currentDay;
+      earning.lastCreditedDay = dayIndex;
       earning.lastCreditTime = new Date();
 
       const user = await User.findById(earning.userId);
@@ -67,17 +65,12 @@ export async function GET(req: Request) {
         userId: earning.userId,
         type: "system",
         message: `Daily trading profit of $${profit} added`,
-        meta: {
-          amount: profit,
-        },
+        meta: { amount: profit },
       });
     }
 
-    // 🔓 COMPLETE (DYNAMIC)
-    if (
-      earning.currentDay >= totalDays - 1 &&
-      earning.status !== "completed"
-    ) {
+    // 🔓 COMPLETE ONLY AFTER FULL TIME PASSES
+    if (elapsed >= durationMs && earning.status !== "completed") {
       earning.status = "completed";
 
       const user = await User.findById(earning.userId);
@@ -106,9 +99,8 @@ export async function GET(req: Request) {
         depositAmount: earning.depositAmount,
         earnedSoFar: earning.earnedSoFar,
 
-        // 🔥 FIXED PROGRESS
-        progress:
-          ((earning.currentDay + 1) / totalDays) * 100,
+        // 🔥 ACCURATE PROGRESS (TIME-BASED)
+        progress: Math.min((elapsed / durationMs) * 100, 100),
       },
     });
 

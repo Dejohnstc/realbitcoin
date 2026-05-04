@@ -2,17 +2,35 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY as string);
 
-// ✅ SAFE BASE URL (NO HARDCODE RISK)
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+// =============================
+// ✅ SAFE SEND HELPER (FIXED)
+// =============================
+
+// 🔥 Proper Resend type (NO any)
+type SendEmailPayload = Parameters<
+  typeof resend.emails.send
+>[0];
+
+async function safeSend(payload: SendEmailPayload) {
+  const { data, error } = await resend.emails.send(payload);
+
+  if (error) {
+    console.error("❌ Email error:", error);
+  } else {
+    console.log("✅ Email sent:", data);
+  }
+}
 
 // =============================
 // ✅ SEND OTP EMAIL
 // =============================
 export const sendOTP = async (email: string, otp: string) => {
   try {
-    await resend.emails.send({
-      from: " CoinlyBitora <noreply@obiresoffice.com>",
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
       subject: "Your  CoinlyBitora Verification Code",
 
@@ -104,8 +122,8 @@ export const sendOTP = async (email: string, otp: string) => {
 // =============================
 export async function sendWelcomeEmail(email: string): Promise<void> {
   try {
-    const response = await resend.emails.send({
-      from: " CoinlyBitora <noreply@obiresoffice.com>",
+    const response = await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
       subject: "Welcome to  CoinlyBitora 🚀",
       html: `
@@ -154,8 +172,8 @@ export async function sendDepositEmail(
   amount: number
 ): Promise<void> {
   try {
-    const response = await resend.emails.send({
-      from: " CoinlyBitora CoinlyBitora <noreply@obiresoffice.com>",
+    const response = await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
       subject: "Deposit Approved ✅",
 
@@ -218,7 +236,7 @@ export async function sendDepositEmail(
                 <!-- CTA BUTTON -->
                 <tr>
                   <td align="center" style="padding-top:30px;">
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard"
+                     <a href="${BASE_URL}/dashboard"
                        style="
                          background:linear-gradient(90deg,#22c55e,#16a34a);
                          color:black;
@@ -231,7 +249,7 @@ export async function sendDepositEmail(
                          box-shadow:0 5px 20px rgba(34,197,94,0.4);
                        ">
                       Go to Dashboard →
-                    </a>
+                    </>
                   </td>
                 </tr>
 
@@ -271,8 +289,8 @@ export async function sendWithdrawEmail(
   amount: number
 ): Promise<void> {
   try {
-    const response = await resend.emails.send({
-      from: " CoinlyBitora <noreply@obiresoffice.com>",
+    const response = await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: email,
       subject: "Withdrawal Processed 💸",
       html: `

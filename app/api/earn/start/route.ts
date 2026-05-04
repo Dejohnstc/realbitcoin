@@ -4,23 +4,30 @@ import { NextResponse } from "next/server";
 import User from "@/models/User";
 import Earning from "@/models/Earning";
 
-// 🔥 GENERATE RANDOM PROFITS BASED ON DAYS
+// 🔥 GENERATE STABLE DAILY PROFITS
 function generateDailyProfits(target: number, days: number): number[] {
+  if (days <= 0) return [];
+
   const profits: number[] = [];
   let remaining = target;
 
-  for (let i = 0; i < days - 1; i++) {
-    const min = remaining * 0.05;
-    const max = remaining * 0.25;
+  for (let i = 0; i < days; i++) {
+    if (i === days - 1) {
+      // last day gets remaining (ensures exact total)
+      profits.push(Math.max(0, Math.round(remaining)));
+    } else {
+      const avg = remaining / (days - i);
+      const variance = avg * 0.3;
 
-    let value = Math.random() * (max - min) + min;
-    value = Math.floor(value);
+      let value =
+        avg + (Math.random() * variance * 2 - variance);
 
-    profits.push(value);
-    remaining -= value;
+      value = Math.max(0, Math.round(value));
+
+      profits.push(value);
+      remaining -= value;
+    }
   }
-
-  profits.push(Math.max(0, Math.floor(remaining)));
 
   return profits;
 }
@@ -64,25 +71,36 @@ export async function POST(req: Request) {
     // 🔒 CHECK BALANCE
     const depositAmount = user.balance;
 
-    if (depositAmount <= 0) {
+    if (
+      typeof depositAmount !== "number" ||
+      depositAmount <= 0
+    ) {
       return NextResponse.json(
         { error: "No balance available" },
         { status: 400 }
       );
     }
 
-    // 🔥 NEW: DYNAMIC CONFIG
-    const multiplier = user.multiplier || 10;
-    const durationDays = user.durationDays || 7;
+    // 🔥 SAFE CONFIG
+    const multiplier =
+      typeof user.multiplier === "number" && user.multiplier > 0
+        ? user.multiplier
+        : 10;
 
-    const targetAmount = depositAmount * multiplier;
+    const durationDays =
+      typeof user.durationDays === "number" &&
+      user.durationDays > 0
+        ? user.durationDays
+        : 7;
+
+    const targetAmount = Math.round(depositAmount * multiplier);
 
     const startTime = new Date();
-    const endTime = new Date(
-      Date.now() + durationDays * 24 * 60 * 60 * 1000
-    );
 
-    // 🔥 DYNAMIC DAILY PROFITS
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const endTime = new Date(startTime.getTime() + durationDays * ONE_DAY);
+
+    // 🔥 GENERATE PROFITS
     const dailyProfits = generateDailyProfits(
       targetAmount,
       durationDays
@@ -97,13 +115,16 @@ export async function POST(req: Request) {
       dailyProfits,
       currentDay: 0,
       lastCreditedDay: -1,
+
+      // 🔥 IMPORTANT: set to startTime (not now later)
       lastCreditTime: startTime,
 
       startTime,
       endTime,
-      durationDays, // 🔥 store for reference
-      multiplier,   // 🔥 store for reference
+      durationDays,
+      multiplier,
 
+      earnedSoFar: 0,
       status: "active",
     });
 

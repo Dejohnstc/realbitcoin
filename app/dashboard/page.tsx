@@ -156,7 +156,7 @@ const fetchEarningStatus = async () => {
     // ✅ NEW
     case "Contact Support Via WhatsApp":
       window.open(
-        "https://wa.me/2348078417869",
+        "https://wa.me/18025484090",
         "_blank"
       );
       break;
