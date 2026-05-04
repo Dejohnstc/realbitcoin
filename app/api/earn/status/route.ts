@@ -33,7 +33,6 @@ export async function GET(req: Request) {
 
     const ONE_DAY = 24 * 60 * 60 * 1000;
 
-    // 🔥 DYNAMIC SETTINGS
     const totalDays = earning.durationDays || 7;
     const durationMs = totalDays * ONE_DAY;
 
@@ -43,15 +42,26 @@ export async function GET(req: Request) {
     const dayIndex = Math.floor(elapsed / ONE_DAY);
     earning.currentDay = Math.min(dayIndex, totalDays - 1);
 
-    // 🔥 CREDIT DAILY PROFIT (STRICT 24H INTERVAL)
-    if (
-      dayIndex > earning.lastCreditedDay &&
-      elapsed >= (earning.lastCreditedDay + 1) * ONE_DAY
+    // =============================
+    // ✅ FIXED PROFIT DISTRIBUTION
+    // =============================
+
+    let credited = false;
+
+    for (
+      let i = earning.lastCreditedDay + 1;
+      i <= earning.currentDay;
+      i++
     ) {
-      const profit = earning.dailyProfits[dayIndex] || 0;
+      // 🔥 STRICT: only credit if FULL 24h passed
+      const requiredTime = (i + 1) * ONE_DAY;
+
+      if (elapsed < requiredTime) break;
+
+      const profit = earning.dailyProfits[i] || 0;
 
       earning.earnedSoFar += profit;
-      earning.lastCreditedDay = dayIndex;
+      earning.lastCreditedDay = i;
       earning.lastCreditTime = new Date();
 
       const user = await User.findById(earning.userId);
@@ -67,9 +77,14 @@ export async function GET(req: Request) {
         message: `Daily trading profit of $${profit} added`,
         meta: { amount: profit },
       });
+
+      credited = true;
     }
 
-    // 🔓 COMPLETE ONLY AFTER FULL TIME PASSES
+    // =============================
+    // ✅ COMPLETE ONLY AFTER FULL TIME
+    // =============================
+
     if (elapsed >= durationMs && earning.status !== "completed") {
       earning.status = "completed";
 
@@ -99,7 +114,7 @@ export async function GET(req: Request) {
         depositAmount: earning.depositAmount,
         earnedSoFar: earning.earnedSoFar,
 
-        // 🔥 ACCURATE PROGRESS (TIME-BASED)
+        // 🔥 TIME-BASED PROGRESS (ACCURATE)
         progress: Math.min((elapsed / durationMs) * 100, 100),
       },
     });

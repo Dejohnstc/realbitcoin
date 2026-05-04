@@ -11,18 +11,39 @@ export async function POST(req: Request) {
     const decoded = verifyToken(token || "");
 
     if (!decoded?.userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const admin = await User.findById(decoded.userId);
     if (!admin || admin.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403 }
+      );
     }
 
     const { userId, multiplier, durationDays } = await req.json();
 
-    if (!userId || !multiplier || !durationDays) {
-      return NextResponse.json({ error: "Missing data" }, { status: 400 });
+    // ✅ FIXED VALIDATION
+    if (
+      !userId ||
+      typeof multiplier !== "number" ||
+      typeof durationDays !== "number"
+    ) {
+      return NextResponse.json(
+        { error: "Missing or invalid data" },
+        { status: 400 }
+      );
+    }
+
+    if (multiplier <= 0 || durationDays <= 0) {
+      return NextResponse.json(
+        { error: "Values must be greater than 0" },
+        { status: 400 }
+      );
     }
 
     await User.findByIdAndUpdate(userId, {
