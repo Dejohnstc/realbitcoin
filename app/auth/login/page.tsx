@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -75,9 +75,25 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-md">
 
-          <h1 className="text-xl font-bold mb-6 text-blue-400">
-            CoinlyBitora <span className="text-sm text-gray-400">TRADING</span>
-          </h1>
+         <div className="flex items-center gap-3 mb-6">
+  <Image
+    src="/icon.png"
+    alt="CoinlyBitora"
+    width={56}
+    height={56}
+    className="rounded-xl object-cover"
+    priority
+  />
+
+  <div>
+    <h1 className="text-xl font-bold text-blue-400">
+      CoinlyBitora
+    </h1>
+    <p className="text-sm text-gray-400">
+      TRADING
+    </p>
+  </div>
+</div>
 
           <h2 className="text-3xl font-bold mb-2">Welcome Back</h2>
           <p className="text-gray-400 mb-6">
