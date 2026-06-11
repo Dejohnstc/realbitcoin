@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import NotificationBell from "@/components/NotificationBell";
 import { LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 interface Props {
   title: string;
@@ -16,19 +17,19 @@ export default function DashboardHeader({ title, showBack }: Props) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true); // ✅ only allowed state update
+    setMounted(true);
   }, []);
 
   if (!mounted) return null;
 
-  // ✅ GREETING (no state)
+  // ✅ GREETING
   const hour = new Date().getHours();
 
   let greeting = "Good Evening";
   if (hour < 12) greeting = "Good Morning";
   else if (hour < 18) greeting = "Good Afternoon";
 
-  // ✅ NAME (no state)
+  // ✅ NAME
   let name = "User";
 
   try {
@@ -66,9 +67,15 @@ export default function DashboardHeader({ title, showBack }: Props) {
           </button>
         )} */}
 
-        <div className="w-8 h-8 rounded-md bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-sm font-bold">
-          C
-        </div>
+        {/* LOGO */}
+        <Image
+          src="/icon.png"
+          alt="CoinlyBitora"
+          width={40}
+          height={40}
+          className="rounded-lg object-cover"
+          priority
+        />
 
         <div className="leading-tight">
           <h1 className="text-blue-400 font-semibold text-lg">
