@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Navbar() {
   const [open, setOpen] = useState<boolean>(false);
@@ -12,11 +13,19 @@ export default function Navbar() {
       <div className="flex items-center justify-between px-4 py-3">
 
         {/* LOGO */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded bg-gradient-to-r from-blue-500 to-purple-500"  />
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/icon.png"
+            alt="CoinlyBitora"
+            width={40}
+            height={40}
+            className="rounded-lg object-cover"
+            priority
+          />
+
           <div>
             <h1 className="text-sm font-bold gradient-text">
-               CoinlyBitora
+              CoinlyBitora
             </h1>
             <p className="text-[10px] text-gray-400">
               TRADING

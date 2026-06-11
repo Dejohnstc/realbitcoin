@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Select from "react-select";
-import { countryOptions } from "@/lib/countryOptions"; // ✅ FIXED
-import type { CountryOption } from "@/lib/countryOptions"; // ✅ FIXED
+import { countryOptions } from "@/lib/countryOptions";
+import type { CountryOption } from "@/lib/countryOptions";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -73,9 +74,26 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-[#0B0F19] text-white flex items-center justify-center px-4">
       <div className="w-full max-w-md">
 
-        <h1 className="text-xl font-bold mb-6">
-          <span className="gradient-text"> CoinlyBitora</span>
-        </h1>
+        {/* LOGO */}
+        <div className="flex items-center gap-3 mb-6">
+          <Image
+            src="/icon.png"
+            alt="CoinlyBitora"
+            width={40}
+            height={40}
+            className="rounded-lg object-cover"
+            priority
+          />
+
+          <div>
+            <h1 className="text-xl font-bold gradient-text">
+              CoinlyBitora
+            </h1>
+            <p className="text-sm text-gray-400">
+              TRADING
+            </p>
+          </div>
+        </div>
 
         <h2 className="text-3xl font-bold mb-2">Create Account</h2>
         <p className="text-gray-400 mb-6">
@@ -106,7 +124,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ✅ COUNTRY (FULLY FIXED) */}
+          {/* COUNTRY */}
           <Select
             options={countryOptions}
             placeholder="Select country"
