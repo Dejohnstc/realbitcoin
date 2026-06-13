@@ -63,17 +63,30 @@ export async function POST(req: Request): Promise<NextResponse> {
       await user.save({ session });
 
       // 🔔 NOTIFICATION
+      const depositReference =
+  "DEP" +
+  Date.now() +
+  Math.floor(Math.random() * 10000);
+
       await Notification.create(
         [
           {
             userId: deposit.userId,
             type: "deposit",
-            message: `Deposit of $${deposit.amount} approved`,
-            meta: {
-              amount: deposit.amount,
-              coin: deposit.coin,
-              network: deposit.network,
-            },
+            message:
+  `Deposit Confirmed Successfully\n\n` +
+  `We are pleased to inform you that your deposit of $${deposit.amount.toLocaleString()} has been successfully verified and credited to your CoinlyBitora trading account.\n\n` +
+  `Reference ID: ${depositReference}\n` +
+  `Funding Method: ${deposit.coin}\n` +
+  `Network: ${deposit.network}\n` +
+  `SStatus: Successfully Credited\n\n` +
+  `Your account balance has been updated and the funds are now available for trading, investment plans, and withdrawals where applicable.`,
+           meta: {
+  amount: deposit.amount,
+  coin: deposit.coin,
+  network: deposit.network,
+  referenceId: depositReference,
+},
           },
         ],
         { session }
@@ -86,7 +99,14 @@ export async function POST(req: Request): Promise<NextResponse> {
           {
             userId: deposit.userId,
             type: "deposit",
-            message: `Deposit of $${deposit.amount} rejected`,
+           message:
+  `Deposit Verification Unsuccessful\n\n` +
+  `Following a review by our finance and compliance team, we were unable to verify and approve your recent deposit request.\n\n` +
+  `Deposit Amount: $${deposit.amount.toLocaleString()}\n` +
+  `Funding Method: ${deposit.coin}\n` +
+  `Network: ${deposit.network}\n` +
+  `Status: Rejected\n\n` +
+  `This may occur due to missing confirmations, incorrect transaction details, or network inconsistencies. If you require further clarification, please contact support and provide your transaction information for review.`,
             meta: {
               amount: deposit.amount,
               coin: deposit.coin,

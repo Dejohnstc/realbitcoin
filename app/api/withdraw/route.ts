@@ -113,6 +113,19 @@ export async function POST(req: Request): Promise<NextResponse> {
       method = "MUKURU";
     }
 
+    // 🔥 GENERATE TRANSACTION ID
+    const transactionId =
+      "TX" +
+      Date.now() +
+      Math.floor(Math.random() * 10000);
+
+    // 🔥 OPTIONAL FEE SYSTEM
+    const fee = Number((amount * 0.02).toFixed(2));
+
+    const netAmount = Number(
+      (amount - fee).toFixed(2)
+    );
+
     console.log("WITHDRAW REQUEST:", {
       amount,
       wallet,
@@ -120,6 +133,9 @@ export async function POST(req: Request): Promise<NextResponse> {
       network,
       meta,
       method,
+      transactionId,
+      fee,
+      netAmount,
     });
 
     // ✅ CREATE WITHDRAWAL
@@ -138,15 +154,25 @@ export async function POST(req: Request): Promise<NextResponse> {
       accountName: meta?.accountName || "",
       bankName: meta?.bankName || "",
       country: meta?.country || "",
+
+      transactionId,
+      fee,
+      netAmount,
     });
 
-    // 🔔 NOTIFICATION
+    // 🔔 PROFESSIONAL NOTIFICATION
     await Notification.create({
       userId: decoded.userId,
       type: "withdraw",
-      message: `Withdrawal request of $${amount} submitted`,
+      message:
+        `Withdrawal request submitted.\n\n` +
+        `Amount: $${amount.toLocaleString()}\n` +
+        `Transaction ID: ${transactionId}\n` +
+        `Method: ${method}\n` +
+        `Status: Pending Review`,
       meta: {
         amount,
+        transactionId,
       },
     });
 

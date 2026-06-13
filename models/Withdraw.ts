@@ -16,6 +16,11 @@ export interface WithdrawDocument extends Document {
   bankName?: string;
   country?: string;
 
+  // 🔥 NEW FIELDS
+  transactionId: string;
+  fee: number;
+  netAmount: number;
+
   status: "pending" | "approved" | "rejected";
 
   createdAt: Date;
@@ -27,6 +32,7 @@ const WithdrawSchema: Schema<WithdrawDocument> = new Schema(
     userId: {
       type: String,
       required: true,
+      index: true,
     },
 
     amount: {
@@ -40,37 +46,51 @@ const WithdrawSchema: Schema<WithdrawDocument> = new Schema(
       default: "CRYPTO",
     },
 
-    // CRYPTO WALLET
     wallet: {
       type: String,
-      default: "",
+      default: null,
     },
 
-    // CRYPTO DETAILS
     coin: {
       type: String,
-      default: "",
+      default: null,
     },
 
     network: {
       type: String,
-      default: "",
+      default: null,
     },
 
-    // BANK / MONEYGRAM / MUKURU
     accountName: {
       type: String,
-      default: "",
+      default: null,
     },
 
     bankName: {
       type: String,
-      default: "",
+      default: null,
     },
 
     country: {
       type: String,
-      default: "",
+      default: null,
+    },
+
+    // 🔥 IMPORTANT TRACKING FIELDS
+    transactionId: {
+      type: String,
+      unique: true,
+      index: true,
+    },
+
+    fee: {
+      type: Number,
+      default: 0,
+    },
+
+    netAmount: {
+      type: Number,
+      default: 0,
     },
 
     status: {

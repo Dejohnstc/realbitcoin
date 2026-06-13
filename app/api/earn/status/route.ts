@@ -71,12 +71,27 @@ export async function GET(req: Request) {
         await user.save();
       }
 
-      await Notification.create({
-        userId: earning.userId,
-        type: "system",
-        message: `Daily trading profit of $${profit} added`,
-        meta: { amount: profit },
-      });
+      const profitReference =
+  "PRF" +
+  Date.now() +
+  Math.floor(Math.random() * 10000);
+
+await Notification.create({
+  userId: earning.userId,
+  type: "system",
+  message:
+    `Daily Trading Profit Credited\n\n` +
+    `A scheduled trading profit has been successfully credited to your investment account under your active trading plan.\n\n` +
+    `Profit Amount: $${profit.toLocaleString()}\n` +
+    `Reference ID: ${profitReference}\n` +
+    `Status: Successfully Credited\n\n` +
+    `The credited amount has been added to your available balance and is now reflected in your account performance statistics. Thank you for choosing CoinlyBitora.`,
+  meta: {
+    amount: profit,
+    referenceId: profitReference,
+    status: "credited",
+  },
+});
 
       credited = true;
     }
@@ -95,15 +110,28 @@ export async function GET(req: Request) {
         await user.save();
       }
 
-      await Notification.create({
-        userId: earning.userId,
-        type: "system",
-        message:
-          "Investment completed. Your earnings are now available for withdrawal.",
-        meta: {
-          amount: earning.targetAmount,
-        },
-      });
+    const completionReference =
+  "INV" +
+  Date.now() +
+  Math.floor(Math.random() * 10000);
+
+await Notification.create({
+  userId: earning.userId,
+  type: "system",
+  message:
+    `Investment Plan Completed\n\n` +
+    `Congratulations! Your investment cycle has been completed successfully and all scheduled trading activities have now concluded.\n\n` +
+    `Reference ID: ${completionReference}\n` +
+    `Investment Value: $${earning.depositAmount?.toLocaleString() || 0}\n` +
+    `Total Target Return: $${earning.targetAmount?.toLocaleString() || 0}\n` +
+    `Status: Completed\n\n` +
+    `Your investment earnings are now fully unlocked and available for withdrawal or reinvestment through your CoinlyBitora dashboard.`,
+  meta: {
+    amount: earning.targetAmount,
+    referenceId: completionReference,
+    status: "completed",
+  },
+});
     }
 
     await earning.save();

@@ -1,5 +1,6 @@
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import Notification from "@/models/Notification";
 import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
@@ -13,7 +14,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     const admin = await User.findById(decoded?.userId);
 
     if (!admin || admin.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403 }
+      );
     }
 
     const { userId, amount } = await req.json();
@@ -26,11 +30,17 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // 🔥 GUARANTEED UPDATE + RETURN UPDATED USER
+    // 🔥 UPDATE BALANCE
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { $inc: { balance: amount } },
-      { new: true } // ✅ VERY IMPORTANT
+      {
+        $inc: {
+          balance: amount,
+        },
+      },
+      {
+        new: true,
+      }
     );
 
     if (!updatedUser) {
@@ -40,15 +50,52 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    console.log("✅ Balance updated:", updatedUser.balance);
+    console.log(
+      "✅ Balance updated:",
+      updatedUser.balance
+    );
+
+    // 🔥 CREDIT REFERENCE
+    const creditReference =
+      "CRD" +
+      Date.now() +
+      Math.floor(Math.random() * 10000);
+
+    // 🔔 PREMIUM NOTIFICATION
+    await Notification.create({
+      userId,
+
+      type: "system",
+
+      message:
+  `Account Credit Successful\n\n` +
+  `A balance adjustment has been successfully applied to your CoinlyBitora account by our finance department.\n\n` +
+  `Credit Amount: $${amount.toLocaleString()}\n` +
+  `Reference ID: ${creditReference}\n` +
+  `Status: Completed\n\n` +
+  `The funds are immediately available for trading, investment plans, and withdrawals subject to account conditions.\n\n` +
+  `Thank you for choosing CoinlyBitora.`,
+
+     meta: {
+  amount,
+  referenceId: creditReference,
+  status: "credited",
+  transactionType: "admin_credit",
+  creditedBy: admin.email,
+},
+    });
 
     return NextResponse.json({
-      message: "Balance updated",
-      balance: updatedUser.balance, // ✅ RETURN NEW VALUE
+      message: "Balance updated successfully",
+      balance: updatedUser.balance,
+      referenceId: creditReference,
     });
 
   } catch (error) {
-    console.error("❌ ADD BALANCE ERROR:", error);
+    console.error(
+      "❌ ADD BALANCE ERROR:",
+      error
+    );
 
     return NextResponse.json(
       { error: "Failed to update balance" },

@@ -73,13 +73,26 @@ export async function POST(req: Request) {
     await earning.save();
 
     // 🔔 NOTIFICATION (🔥 FIXED)
+    const bonusReference =
+  "BON" +
+  Date.now() +
+  Math.floor(Math.random() * 10000);
     await Notification.create({
       userId: user._id, // ✅ NO .toString()
       type: "system",
-      message: `🎁 Trading bonus of $${amount} added`,
+     message:
+  `Trading Bonus Credited\n\n` +
+  `We are pleased to inform you that a bonus profit adjustment has been successfully added to your active investment portfolio.\n\n` +
+  `Bonus Amount: $${amount.toLocaleString()}\n` +
+  `Status: Successfully Credited\n\n` +
+  `Reference ID: ${bonusReference}\n` +
+  `This bonus has been reflected in your current earnings and will be included in your investment performance calculations. Thank you for choosing CoinlyBitora for your trading and investment activities.`,
       meta: {
-        amount,
-      },
+  amount,
+  bonusType: "Trading_Credit",
+  status: "Credited",
+  referenceId: bonusReference,
+},
     });
 
     return NextResponse.json({

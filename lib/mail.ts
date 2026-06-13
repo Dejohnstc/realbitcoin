@@ -34,7 +34,7 @@ export const sendOTP = async (email: string, otp: string) => {
   try {
     await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
-      to: email,
+      to: [email],
       subject: "Your  CoinlyBitora Verification Code",
 
       html: `
@@ -127,7 +127,7 @@ export async function sendWelcomeEmail(email: string): Promise<void> {
   try {
     const response = await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
-      to: email,
+      to: [email],
       subject: "Welcome to  CoinlyBitora 🚀",
       html: `
       <div style="font-family: Arial, sans-serif; background:#0B0F19; color:white; padding:20px;">
@@ -177,7 +177,7 @@ export async function sendDepositEmail(
   try {
     const response = await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
-      to: email,
+      to: [email],
       subject: "Deposit Approved ✅",
 
       html: `
@@ -289,45 +289,149 @@ export async function sendDepositEmail(
 // =============================
 export async function sendWithdrawEmail(
   email: string,
-  amount: number
+  amount: number,
+  transactionId: string,
+  method: string
 ): Promise<void> {
   try {
     const response = await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
-      to: email,
-      subject: "Withdrawal Processed 💸",
+      to: [email],
+      subject: "Withdrawal Approved 💸",
       html: `
-      <div style="font-family: Arial, sans-serif; background:#0B0F19; color:white; padding:20px;">
-        <div style="max-width:500px; margin:auto; background:#131A2A; padding:30px; border-radius:10px;">
+      <div style="font-family:Arial,sans-serif;background:#0B0F19;padding:30px;color:white;">
+        <div style="max-width:600px;margin:auto;background:#131A2A;border-radius:12px;padding:30px;">
 
-          <h2 style="color:#facc15; text-align:center;">Withdrawal Approved</h2>
-
-          <p>Your withdrawal request has been processed successfully.</p>
-
-          <div style="text-align:center; margin:20px 0;">
-            <span style="font-size:26px; font-weight:bold; color:#facc15;">
-              $${amount}
-            </span>
+          <div style="text-align:center;margin-bottom:25px;">
+            <h1 style="margin:0;color:#facc15;">
+              CoinlyBitora
+            </h1>
+            <p style="color:#9ca3af;margin-top:5px;">
+              Withdrawal Processing Notice
+            </p>
           </div>
 
-          <p style="color:#ccc;">
-            Funds will reflect in your wallet shortly depending on network confirmations.
+          <h2 style="text-align:center;color:#22c55e;">
+            ✅ Withdrawal Approved
+          </h2>
+
+          <p style="color:#d1d5db;font-size:15px;">
+            Your withdrawal request has been approved and is currently being processed.
           </p>
 
-          <div style="text-align:center; margin-top:25px;">
-            <a href="${BASE_URL}/dashboard"
-               style="background:#facc15; color:black; padding:10px 20px; text-decoration:none; border-radius:5px;">
-               View Dashboard
+          <div style="
+            background:#0B0F19;
+            padding:20px;
+            border-radius:10px;
+            margin:20px 0;
+          ">
+            <table style="width:100%;color:white;">
+              <tr>
+                <td style="padding:8px 0;color:#9ca3af;">
+                  Amount
+                </td>
+                <td style="text-align:right;font-weight:bold;color:#facc15;">
+                  $${amount.toLocaleString()}
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:8px 0;color:#9ca3af;">
+                  Transaction ID
+                </td>
+                <td style="text-align:right;">
+                  ${transactionId}
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:8px 0;color:#9ca3af;">
+                  Method
+                </td>
+                <td style="text-align:right;">
+                  ${method}
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:8px 0;color:#9ca3af;">
+                  Status
+                </td>
+                <td style="text-align:right;color:#22c55e;">
+                  Processing
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:8px 0;color:#9ca3af;">
+                  Date
+                </td>
+                <td style="text-align:right;">
+                  ${new Date().toLocaleString()}
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="
+            background:#052e16;
+            border:1px solid #166534;
+            padding:15px;
+            border-radius:10px;
+            margin-bottom:20px;
+          ">
+            <p style="margin:0;color:#bbf7d0;">
+              Your funds are being transferred through the selected withdrawal method and may take between 1–24 hours to arrive depending on processing requirements.
+            </p>
+          </div>
+
+          <div style="text-align:center;margin-top:25px;">
+            <a
+              href="${BASE_URL}/dashboard"
+              style="
+                display:inline-block;
+                background:#facc15;
+                color:black;
+                text-decoration:none;
+                padding:12px 24px;
+                border-radius:8px;
+                font-weight:bold;
+              "
+            >
+              View Dashboard
             </a>
           </div>
+
+          <hr style="margin:30px 0;border-color:#1f2937;" />
+
+          <p style="
+            text-align:center;
+            color:#6b7280;
+            font-size:12px;
+          ">
+            CoinlyBitora Trading Platform<br/>
+            Transaction Reference: ${transactionId}
+          </p>
 
         </div>
       </div>
       `,
     });
 
-    console.log("✅ Withdraw email sent:", response);
+    console.log("✅ Withdraw email sent:", {
+      email,
+      amount,
+      transactionId,
+      method,
+      response,
+    });
   } catch (error) {
-    console.error("❌ Withdraw email FAILED:", error);
+    console.error("❌ Withdraw email FAILED:", {
+      email,
+      amount,
+      transactionId,
+      method,
+      error,
+    });
   }
 }
