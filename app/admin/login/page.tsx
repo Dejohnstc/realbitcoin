@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false); // ✅ added
+  const [loading, setLoading] = useState(false);
 
   const router = useRouter();
 
   const handleLogin = async () => {
-    if (loading) return; // ✅ prevent spam clicks
+    if (loading) return;
 
     try {
       setLoading(true);
@@ -21,7 +21,10 @@ export default function AdminLoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       });
 
       const data = await res.json();
@@ -31,29 +34,41 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // ✅ STRICT CHECK BEFORE SAVING
+      // ✅ MUST BE ADMIN
       if (!data.user || data.user.role !== "admin") {
         alert("Not an admin account");
         return;
       }
 
-      // ✅ SAVE ADMIN DATA (ONLY AFTER VALIDATION)
+      // 🔥 CLEAR USER SESSION FIRST
+      localStorage.removeItem("user_token");
+      localStorage.removeItem("user");
+
+      // 🔥 CLEAR OLD ADMIN SESSION
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_data");
+
+      // ✅ SAVE ADMIN SESSION
       localStorage.setItem("admin_token", data.token);
-      localStorage.setItem("admin_data", JSON.stringify(data.user));
+      localStorage.setItem(
+        "admin_data",
+        JSON.stringify(data.user)
+      );
 
-      // 🔥 REDIRECT
+      // 🚀 REDIRECT
       router.replace("/admin/dashboard");
-
-    } catch {
+    } catch (error) {
+      console.error(error);
       alert("Login failed");
     } finally {
-      setLoading(false); // ✅ reset loading
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] text-white">
       <div className="bg-[#131A2A] p-6 rounded-xl w-80 space-y-4">
+
         <h1 className="text-xl font-bold text-center">
           Admin Login
         </h1>
@@ -80,6 +95,7 @@ export default function AdminLoginPage() {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
+
       </div>
     </div>
   );

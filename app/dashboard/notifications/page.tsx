@@ -181,9 +181,11 @@ export default function NotificationsPage() {
               {getTitle(selected)}
             </h3>
 
-            <p className="text-sm text-gray-300 mb-3 break-words leading-relaxed">
-  {selected.message}
-</p>
+       <div className="bg-[#0B0F19] rounded-xl p-4 mb-4">
+  <div className="text-sm text-gray-300 whitespace-pre-line leading-7">
+    {selected.message}
+  </div>
+</div>
 
             {selected.meta?.amount && (
               <p className="text-green-400 font-semibold text-lg">
@@ -228,7 +230,7 @@ function Item({ n, onClick, getIcon, getTitle }: ItemProps) {
           {getTitle(n)}
         </p>
 
-        <p className="text-xs text-gray-400 line-clamp-2 break-words">
+    <p className="text-xs text-gray-400 line-clamp-2 break-words whitespace-pre-line">
   {n.message}
 </p>
       </div>

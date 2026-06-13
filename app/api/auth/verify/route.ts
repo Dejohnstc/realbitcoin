@@ -17,7 +17,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     // ✅ normalize email
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (!user) {
       return NextResponse.json(
@@ -26,7 +28,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // 🔥 FIX: track previous state (DO NOT BLOCK FLOW)
+    // 🔥 track previous state
     const wasVerified = user.isVerified;
 
     // ✅ clean OTP
@@ -58,15 +60,26 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // 🔥 SEND EMAIL ONLY FIRST TIME
+    // 🔥 SEND WELCOME EMAIL ONLY FIRST TIME
     if (!wasVerified) {
-      sendWelcomeEmail(user.email)
-        .then(() => {
-          console.log("✅ Welcome email sent to:", user.email);
-        })
-        .catch((err) => {
-          console.error("❌ Welcome email failed:", err);
-        });
+      try {
+        console.log(
+          "🚀 Sending welcome email to:",
+          user.email
+        );
+
+        await sendWelcomeEmail(user.email);
+
+        console.log(
+          "✅ Welcome email sent to:",
+          user.email
+        );
+      } catch (err) {
+        console.error(
+          "❌ Welcome email failed:",
+          err
+        );
+      }
     }
 
     return NextResponse.json({
@@ -76,7 +89,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error("VERIFY ERROR:", error);
+    console.error(
+      "VERIFY ERROR:",
+      error
+    );
 
     return NextResponse.json(
       { error: "Verification failed" },

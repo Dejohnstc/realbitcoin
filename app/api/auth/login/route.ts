@@ -26,7 +26,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     // ✅ FIX 1: normalize email (CRITICAL)
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({
+  email: normalizedEmail,
+}).lean(false);
 
     if (!user || !user.password) {
       return NextResponse.json(
@@ -64,12 +66,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({
       message: "Login successful",
       token,
-      user: {
-        name: user.name || user.email.split("@")[0],
-        email: user.email,
-        balance: user.balance,
-        role: user.role,
-      },
+    user: {
+  id: user._id,
+  name: user.name || user.email.split("@")[0],
+  email: user.email,
+  balance: user.balance,
+  role: user.role,
+},
     });
 
   } catch (error) {

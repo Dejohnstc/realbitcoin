@@ -79,7 +79,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   `Reference ID: ${depositReference}\n` +
   `Funding Method: ${deposit.coin}\n` +
   `Network: ${deposit.network}\n` +
-  `SStatus: Successfully Credited\n\n` +
+  `Status: Successfully Credited\n\n` +
   `Your account balance has been updated and the funds are now available for trading, investment plans, and withdrawals where applicable.`,
            meta: {
   amount: deposit.amount,
