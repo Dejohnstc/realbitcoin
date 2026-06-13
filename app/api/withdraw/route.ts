@@ -1,14 +1,23 @@
 import { connectDB } from "@/lib/mongodb";
 import Withdraw from "@/models/Withdraw";
 import User from "@/models/User";
-import Earning from "@/models/Earning"; // 🔥 NEW
-import Notification from "@/models/Notification"; // 🔥 NEW
+import Earning from "@/models/Earning";
+import Notification from "@/models/Notification";
 import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 interface Body {
   amount: number;
-  wallet: string;
+  wallet?: string;
+
+  coin?: string;
+  network?: string;
+
+  meta?: {
+    accountName?: string;
+    bankName?: string;
+    country?: string;
+  };
 }
 
 export async function POST(req: Request): Promise<NextResponse> {
@@ -18,17 +27,29 @@ export async function POST(req: Request): Promise<NextResponse> {
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
 
     if (!decoded?.userId) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid token" },
+        { status: 401 }
+      );
     }
 
-    const { amount, wallet }: Body = await req.json();
+    const {
+      amount,
+      wallet,
+      coin,
+      network,
+      meta,
+    }: Body = await req.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
@@ -46,7 +67,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    // 🔥 CHECK ACTIVE EARNING
+    // 🔒 BLOCK WITHDRAWAL WHILE EARNING ACTIVE
     const earning = await Earning.findOne({
       userId: decoded.userId,
       status: "active",
@@ -58,10 +79,11 @@ export async function POST(req: Request): Promise<NextResponse> {
 
       const daysLeft = Math.max(
         1,
-        Math.ceil(remainingTime / (24 * 60 * 60 * 1000))
+        Math.ceil(
+          remainingTime / (24 * 60 * 60 * 1000)
+        )
       );
 
-      // 🔔 SYSTEM NOTIFICATION
       await Notification.create({
         userId: decoded.userId,
         type: "system",
@@ -76,11 +98,56 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+    // 🔥 DETERMINE METHOD
+    let method:
+      | "CRYPTO"
+      | "BANK"
+      | "MONEYGRAM"
+      | "MUKURU" = "CRYPTO";
+
+    if (coin === "BANK") {
+      method = "BANK";
+    } else if (coin === "MONEYGRAM") {
+      method = "MONEYGRAM";
+    } else if (coin === "MUKURU") {
+      method = "MUKURU";
+    }
+
+    console.log("WITHDRAW REQUEST:", {
+      amount,
+      wallet,
+      coin,
+      network,
+      meta,
+      method,
+    });
+
     // ✅ CREATE WITHDRAWAL
     const withdraw = await Withdraw.create({
       userId: decoded.userId,
+
       amount,
-      wallet,
+
+      method,
+
+      wallet: wallet || "",
+
+      coin: coin || "",
+      network: network || "",
+
+      accountName: meta?.accountName || "",
+      bankName: meta?.bankName || "",
+      country: meta?.country || "",
+    });
+
+    // 🔔 NOTIFICATION
+    await Notification.create({
+      userId: decoded.userId,
+      type: "withdraw",
+      message: `Withdrawal request of $${amount} submitted`,
+      meta: {
+        amount,
+      },
     });
 
     return NextResponse.json({

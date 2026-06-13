@@ -6,15 +6,20 @@ import { useRouter } from "next/navigation";
 interface Withdraw {
   _id: string;
   userId: string;
+
   amount: number;
-  wallet: string;
+
+  method?: "CRYPTO" | "BANK" | "MONEYGRAM" | "MUKURU";
+
+  wallet?: string;
+
   coin?: string;
   network?: string;
-  meta?: {
-    accountName?: string;
-    bankName?: string;
-    country?: string;
-  };
+
+  accountName?: string;
+  bankName?: string;
+  country?: string;
+
   status: "pending" | "approved" | "rejected";
 }
 
@@ -23,10 +28,14 @@ export default function AdminWithdrawalsPage() {
 
   const [withdrawals, setWithdrawals] = useState<Withdraw[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasToken, setHasToken] = useState<boolean | null>(null);
 
   const fetchWithdrawals = async () => {
     const token = localStorage.getItem("admin_token");
+
+    if (!token) {
+      router.replace("/admin/login");
+      return;
+    }
 
     try {
       const res = await fetch("/api/admin/withdrawals", {
@@ -39,32 +48,28 @@ export default function AdminWithdrawalsPage() {
 
       if (res.ok) {
         setWithdrawals(data.withdrawals || []);
+      } else if (res.status === 401 || res.status === 403) {
+        router.replace("/admin/login");
       }
     } catch {
       console.log("Failed to fetch withdrawals");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   useEffect(() => {
-  const token = localStorage.getItem("admin_token");
+    const token = localStorage.getItem("admin_token");
 
-  // 🔥 redirect only (no setState)
-  if (!token) {
-    router.replace("/admin/login");
-    return;
-  }
+    if (!token) {
+      router.replace("/admin/login");
+      return;
+    }
 
-  // 🔥 defer fetch (prevents warning)
-  setTimeout(() => {
-    fetchWithdrawals();
-  }, 0);
-
-}, [router]);
-
-  if (hasToken === null) return null;
-  if (!hasToken) return null;
+    setTimeout(() => {
+      fetchWithdrawals();
+    }, 0);
+  }, [router]);
 
   const handleAction = async (
     id: string,
@@ -72,24 +77,27 @@ export default function AdminWithdrawalsPage() {
   ) => {
     const token = localStorage.getItem("admin_token");
 
-    await fetch("/api/admin/approve-withdraw", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        withdrawId: id,
-        action,
-      }),
-    });
+    try {
+      await fetch("/api/admin/approve-withdraw", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          withdrawId: id,
+          action,
+        }),
+      });
 
-    fetchWithdrawals();
+      fetchWithdrawals();
+    } catch (err) {
+      console.error("Action failed", err);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-6">
-
       <h1 className="text-2xl font-bold mb-6">
         Withdrawals (Admin)
       </h1>
@@ -100,14 +108,13 @@ export default function AdminWithdrawalsPage() {
         <p>No withdrawals yet</p>
       ) : (
         <div className="space-y-4">
-
           {withdrawals.map((w) => {
             const method =
-              w.coin === "BANK"
+              w.method === "BANK"
                 ? "Bank Transfer"
-                : w.coin === "MONEYGRAM"
+                : w.method === "MONEYGRAM"
                 ? "MoneyGram / Western Union"
-                : w.coin === "MUKURU"
+                : w.method === "MUKURU"
                 ? "Mukuru"
                 : "Crypto";
 
@@ -117,7 +124,6 @@ export default function AdminWithdrawalsPage() {
                 className="bg-[#131A2A] p-4 rounded-xl flex justify-between items-start"
               >
                 <div className="space-y-1">
-
                   <p className="text-xs text-gray-400">
                     User: {w.userId}
                   </p>
@@ -126,32 +132,31 @@ export default function AdminWithdrawalsPage() {
                     ${w.amount}
                   </p>
 
-                  {/* METHOD */}
                   <p className="text-sm text-yellow-400">
                     {method}
                   </p>
 
-                  {/* DETAILS */}
-                  {method === "Crypto" ? (
+                  {w.method === "CRYPTO" ? (
                     <>
                       <p className="text-xs text-gray-400 break-all">
                         {w.wallet}
                       </p>
+
                       <p className="text-xs text-gray-500">
                         {w.coin} • {w.network}
                       </p>
                     </>
                   ) : (
                     <>
-                      {w.meta?.accountName && (
+                      {w.accountName && (
                         <p className="text-xs">
-                          Name: {w.meta.accountName}
+                          Name: {w.accountName}
                         </p>
                       )}
 
-                      {w.meta?.bankName && (
+                      {w.bankName && (
                         <p className="text-xs">
-                          Bank: {w.meta.bankName}
+                          Bank: {w.bankName}
                         </p>
                       )}
 
@@ -161,15 +166,14 @@ export default function AdminWithdrawalsPage() {
                         </p>
                       )}
 
-                      {w.meta?.country && (
+                      {w.country && (
                         <p className="text-xs">
-                          Location: {w.meta.country}
+                          Location: {w.country}
                         </p>
                       )}
                     </>
                   )}
 
-                  {/* STATUS */}
                   <p
                     className={`text-xs mt-1 ${
                       w.status === "pending"
@@ -185,7 +189,6 @@ export default function AdminWithdrawalsPage() {
 
                 {w.status === "pending" && (
                   <div className="flex gap-2">
-
                     <button
                       onClick={() =>
                         handleAction(w._id, "approve")
@@ -203,13 +206,11 @@ export default function AdminWithdrawalsPage() {
                     >
                       Reject
                     </button>
-
                   </div>
                 )}
               </div>
             );
           })}
-
         </div>
       )}
     </div>

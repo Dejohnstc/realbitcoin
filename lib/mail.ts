@@ -19,9 +19,12 @@ async function safeSend(payload: SendEmailPayload) {
 
   if (error) {
     console.error("❌ Email error:", error);
-  } else {
-    console.log("✅ Email sent:", data);
+    throw new Error(JSON.stringify(error));
   }
+
+  console.log("✅ Email sent:", data);
+
+  return data;
 }
 
 // =============================
@@ -249,7 +252,7 @@ export async function sendDepositEmail(
                          box-shadow:0 5px 20px rgba(34,197,94,0.4);
                        ">
                       Go to Dashboard →
-                    </>
+                    </a>
                   </td>
                 </tr>
 
