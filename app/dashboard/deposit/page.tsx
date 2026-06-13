@@ -61,7 +61,9 @@ export default function DepositPage() {
   useEffect(() => {
     const loadMarket = async () => {
       try {
-        const res = await fetch("/api/market");
+        const res = await fetch("/api/markets", {
+  cache: "no-store",
+});
         const data = await res.json();
 
         const map: Record<string, number> = {};
@@ -81,13 +83,19 @@ export default function DepositPage() {
 
   // ✅ CONVERSION
   const getConverted = () => {
-    if (!selectedCoin || !amount) return 0;
+  if (!selectedCoin || !amount) return 0;
 
-    const price = prices[selectedCoin.symbol];
-    if (!price) return 0;
+  // USDT = 1:1
+  if (selectedCoin.symbol === "usdt") {
+    return amount;
+  }
 
-    return amount / price;
-  };
+  const price = prices[selectedCoin.symbol];
+
+  if (!price || price <= 0) return 0;
+
+  return amount / price;
+};
 
   // ✅ COPY ADDRESS
   const copyAddress = () => {
