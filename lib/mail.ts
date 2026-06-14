@@ -239,7 +239,7 @@ export async function sendDepositEmail(
                 <!-- CTA BUTTON -->
                 <tr>
                   <td align="center" style="padding-top:30px;">
-                     <a href="${BASE_URL}/dashboard"
+                     <a href="${BASE_URL}/auth/login"
                        style="
                          background:linear-gradient(90deg,#22c55e,#16a34a);
                          color:black;
@@ -251,7 +251,7 @@ export async function sendDepositEmail(
                          display:inline-block;
                          box-shadow:0 5px 20px rgba(34,197,94,0.4);
                        ">
-                      Go to Dashboard →
+                      Login & Go To Dashboard →
                     </a>
                   </td>
                 </tr>
