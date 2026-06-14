@@ -142,10 +142,10 @@ export async function sendWelcomeEmail(email: string): Promise<void> {
           </p>
 
           <div style="text-align:center; margin-top:25px;">
-            <a href="${BASE_URL}/dashboard/investments" 
-               style="background:#f97316; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">
-               Start Investing
-            </a>
+            <a href="${BASE_URL}/auth/login"
+   style="background:#f97316; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">
+   Login & Start Investing
+</a>
 
             <p style="font-size:13px; color:#aaa; text-align:center; margin-top:20px;">
               Explore our investment plans and start trading today.
