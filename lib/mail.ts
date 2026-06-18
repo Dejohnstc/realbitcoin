@@ -299,116 +299,65 @@ export async function sendWithdrawEmail(
       to: [email],
       subject: "Withdrawal Approved 💸",
       html: `
-      <div style="font-family:Arial,sans-serif;background:#0B0F19;padding:30px;color:white;">
-        <div style="max-width:600px;margin:auto;background:#131A2A;border-radius:12px;padding:30px;">
+      <div style="margin:0;padding:0;background:#0B0F19;font-family:Arial,Helvetica,sans-serif;">
+        <div style="max-width:600px;margin:auto;background:#131A2A;border-radius:12px;padding:30px;color:white;">
 
           <div style="text-align:center;margin-bottom:25px;">
-            <h1 style="margin:0;color:#facc15;">
-              CoinlyBitora
-            </h1>
-            <p style="color:#9ca3af;margin-top:5px;">
-              Withdrawal Processing Notice
-            </p>
+            <h1 style="margin:0;color:#facc15;">CoinlyBitora</h1>
+            <p style="color:#9ca3af;margin-top:5px;">Withdrawal Processing Notice</p>
           </div>
 
-          <h2 style="text-align:center;color:#22c55e;">
-            ✅ Withdrawal Approved
-          </h2>
+          <h2 style="text-align:center;color:#22c55e;margin:0 0 15px;">✅ Withdrawal Approved</h2>
 
-          <p style="color:#d1d5db;font-size:15px;">
+          <p style="color:#d1d5db;font-size:15px;text-align:center;">
             Your withdrawal request has been approved and is currently being processed.
           </p>
 
-          <div style="
-            background:#0B0F19;
-            padding:20px;
-            border-radius:10px;
-            margin:20px 0;
-          ">
-            <table style="width:100%;color:white;">
+          <div style="background:#0B0F19;padding:20px;border-radius:10px;margin:20px 0;">
+            <table style="width:100%;border-collapse:collapse;color:white;font-size:14px;">
               <tr>
-                <td style="padding:8px 0;color:#9ca3af;">
-                  Amount
-                </td>
-                <td style="text-align:right;font-weight:bold;color:#facc15;">
+                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Amount</td>
+                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;font-weight:bold;color:#facc15;">
                   $${amount.toLocaleString()}
                 </td>
               </tr>
-
               <tr>
-                <td style="padding:8px 0;color:#9ca3af;">
-                  Transaction ID
-                </td>
-                <td style="text-align:right;">
+                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Transaction ID</td>
+                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;font-family:monospace;font-size:13px;word-break:break-all;">
                   ${transactionId}
                 </td>
               </tr>
-
               <tr>
-                <td style="padding:8px 0;color:#9ca3af;">
-                  Method
-                </td>
-                <td style="text-align:right;">
-                  ${method}
-                </td>
+                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Method</td>
+                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">${method}</td>
               </tr>
-
               <tr>
-                <td style="padding:8px 0;color:#9ca3af;">
-                  Status
-                </td>
-                <td style="text-align:right;color:#22c55e;">
-                  Processing
-                </td>
+                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Status</td>
+                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;color:#22c55e;">Processing</td>
               </tr>
-
               <tr>
-                <td style="padding:8px 0;color:#9ca3af;">
-                  Date
-                </td>
-                <td style="text-align:right;">
-                  ${new Date().toLocaleString()}
-                </td>
+                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Date</td>
+                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">${new Date().toLocaleString()}</td>
               </tr>
             </table>
           </div>
 
-          <div style="
-            background:#052e16;
-            border:1px solid #166534;
-            padding:15px;
-            border-radius:10px;
-            margin-bottom:20px;
-          ">
-            <p style="margin:0;color:#bbf7d0;">
+          <div style="background:#052e16;border:1px solid #166534;padding:15px;border-radius:10px;margin-bottom:20px;">
+            <p style="margin:0;color:#bbf7d0;font-size:14px;">
               Your funds are being transferred through the selected withdrawal method and may take between 1–24 hours to arrive depending on processing requirements.
             </p>
           </div>
 
           <div style="text-align:center;margin-top:25px;">
-            <a
-              href="${BASE_URL}/dashboard"
-              style="
-                display:inline-block;
-                background:#facc15;
-                color:black;
-                text-decoration:none;
-                padding:12px 24px;
-                border-radius:8px;
-                font-weight:bold;
-              "
-            >
+            <a href="${BASE_URL}/dashboard"
+              style="display:inline-block;background:#facc15;color:black;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;">
               View Dashboard
             </a>
           </div>
 
           <hr style="margin:30px 0;border-color:#1f2937;" />
 
-          <p style="
-            text-align:center;
-            color:#6b7280;
-            font-size:12px;
-          ">
+          <p style="text-align:center;color:#6b7280;font-size:12px;">
             CoinlyBitora Trading Platform<br/>
             Transaction Reference: ${transactionId}
           </p>
