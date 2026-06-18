@@ -2,49 +2,108 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import { sendOTP } from "@/lib/mail";
 import bcrypt from "bcryptjs";
+import { randomInt } from "crypto";
 import { NextResponse } from "next/server";
 
+interface RegisterBody {
+  name?: string;
+  email?: string;
+  country?: string;
+  phone?: string;
+  password?: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds between code requests
+
+// 🔐 cryptographically secure 6-digit OTP (not Math.random)
 function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 }
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     await connectDB();
 
-    const { email, password }: { email: string; password: string } =
-      await req.json();
+    const body = (await req.json()) as RegisterBody;
 
-    if (!email || !password) {
+    const name = (body.name || "").trim();
+    const email = (body.email || "").trim().toLowerCase();
+    const country = (body.country || "").trim();
+    const phoneRaw = (body.phone || "").trim();
+    const password = body.password || "";
+
+    // 🔒 SERVER-SIDE VALIDATION (never trust the client)
+    if (!name || name.length < 2) {
       return NextResponse.json(
-        { error: "All fields are required" },
+        { error: "A valid full name is required" },
+        { status: 400 }
+      );
+    }
+    if (!EMAIL_RE.test(email)) {
+      return NextResponse.json(
+        { error: "A valid email is required" },
+        { status: 400 }
+      );
+    }
+    if (!country) {
+      return NextResponse.json(
+        { error: "Country is required" },
         { status: 400 }
       );
     }
 
-    // ✅ FIX 1: normalize email (CRITICAL)
-    const normalizedEmail = email.trim().toLowerCase();
+    const phoneDigits = phoneRaw.replace(/[^\d]/g, "");
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      return NextResponse.json(
+        { error: "A valid phone number is required" },
+        { status: 400 }
+      );
+    }
+    const phone = (phoneRaw.startsWith("+") ? "+" : "") + phoneDigits;
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters" },
+        { status: 400 }
+      );
+    }
 
-    // ✅ FIX 2: allow resend if NOT verified
+    const existingUser = await User.findOne({ email });
+
+    // already registered AND verified → block
     if (existingUser && existingUser.isVerified) {
       return NextResponse.json(
-        { error: "User already exists" },
-        { status: 400 }
+        { error: "An account with this email already exists" },
+        { status: 409 }
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // ⏳ throttle resend for unverified accounts (anti-spam)
+    if (existingUser && existingUser.otpExpires) {
+      const lastSent = existingUser.otpExpires.getTime() - OTP_TTL_MS;
+      const sinceLast = Date.now() - lastSent;
+      if (sinceLast < RESEND_COOLDOWN_MS) {
+        const wait = Math.ceil((RESEND_COOLDOWN_MS - sinceLast) / 1000);
+        return NextResponse.json(
+          { error: `Please wait ${wait}s before requesting another code` },
+          { status: 429 }
+        );
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
     const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + OTP_TTL_MS);
 
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-
-    // ✅ FIX 3: always update same normalized email
     const user = await User.findOneAndUpdate(
-      { email: normalizedEmail },
+      { email },
       {
-        email: normalizedEmail,
+        name,
+        email,
+        country,
+        phone,
         password: hashedPassword,
         otp,
         otpExpires,
@@ -53,19 +112,14 @@ export async function POST(req: Request): Promise<NextResponse> {
       { upsert: true, new: true }
     );
 
-    // ✅ FIX 4: send to normalized email
-    await sendOTP(normalizedEmail, otp);
-
-    console.log("✅ OTP SENT TO:", normalizedEmail);
+    await sendOTP(email, otp);
 
     return NextResponse.json({
       message: "OTP sent to email",
       userId: user._id,
     });
-
   } catch (error) {
     console.error("❌ REGISTER ERROR:", error);
-
     return NextResponse.json(
       { error: "Something went wrong" },
       { status: 500 }

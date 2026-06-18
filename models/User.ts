@@ -20,6 +20,7 @@ export interface IUser extends Document {
 
   name?: string;
   country?: string;
+  phone?: string;
   profileImage?: string;
 
   notifications: INotifications;
@@ -55,9 +56,9 @@ const UserSchema: Schema<IUser> = new Schema(
       type: String,
       required: true,
       unique: true,
-      lowercase: true,   // 🔥 FIX
-      trim: true,        // 🔥 FIX
-      index: true,       // 🔥 FIX
+      lowercase: true,
+      trim: true,
+      index: true,
     },
 
     password: { type: String },
@@ -81,9 +82,12 @@ const UserSchema: Schema<IUser> = new Schema(
     name: { type: String, default: "" },
     country: { type: String, default: "" },
 
+    // 📱 phone number (validated in the register route)
+    phone: { type: String, default: "", trim: true },
+
     profileImage: {
       type: String,
-      default: null, // 🔥 better than ""
+      default: null,
     },
 
     notifications: {
@@ -97,17 +101,16 @@ const UserSchema: Schema<IUser> = new Schema(
     isVerified: { type: Boolean, default: false },
     isSuspended: { type: Boolean, default: false },
 
-    // 🔥 RETURNS CONTROL (VALIDATED)
     multiplier: {
       type: Number,
       default: 10,
-      min: 1, // 🔥 prevent 0 or negative
+      min: 1,
     },
 
     durationDays: {
       type: Number,
       default: 7,
-      min: 1, // 🔥 prevent invalid duration
+      min: 1,
     },
   },
   { timestamps: true }
