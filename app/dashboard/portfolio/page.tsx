@@ -67,8 +67,8 @@ function LiveCandleChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const TICK_MS = 150;
-    const TICKS_PER_CANDLE = 13;
+    const TICK_MS = 1000;
+const TICKS_PER_CANDLE = 60;
     const MAX_CANDLES = 46;
 
     if (candlesRef.current.length === 0) {
@@ -187,7 +187,17 @@ function LiveCandleChart({
 
         const target = valueRef.current || priceRef.current;
         const drift = (target - priceRef.current) * 0.06;
-        const noise = priceRef.current * (Math.random() - 0.5) * 0.005;
+        const trendBias =
+  Math.random() > 0.5
+    ? 0.0015
+    : -0.0015;
+
+const noise =
+  priceRef.current *
+  (
+    trendBias +
+    (Math.random() - 0.5) * 0.002
+  );
         priceRef.current = Math.max(0.01, priceRef.current + drift + noise);
 
         const cur = currentRef.current;
@@ -454,23 +464,188 @@ setLockedBalance(data.user?.lockedBalance ?? 0);
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-[#131A2A] to-[#1A2235] p-6 rounded-2xl mb-4 border border-gray-800">
-        <p className="text-gray-400 text-sm">Total Balance</p>
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#131A2A] via-[#1A2235] to-[#101827] p-6 rounded-3xl mb-4 border border-yellow-500/20 shadow-[0_0_40px_rgba(250,204,21,0.08)]">
 
-        <h2
-          className={`text-3xl font-bold ${
-            earning ? (isUp ? "text-green-400" : "text-red-400") : "text-white"
-          }`}
-        >
-          {formatUSD(earning ? displayValue : userBalance)}
-        </h2>
+{/* Glow */}
 
-        {earning?.status === "active" && (
-          <p className="text-yellow-400 text-xs mt-2 flex items-center gap-1">
-            <Lock size={12} /> Trading • Ends in {countdown}
-          </p>
-        )}
-      </div>
+  <div className="absolute -top-20 -right-20 w-48 h-48 bg-yellow-400/10 blur-3xl rounded-full" />
+
+{/* Header */}
+
+  <div className="flex justify-between items-start mb-4">
+    <div>
+      <p className="text-xs uppercase tracking-[0.25em] text-yellow-400">
+        Total Net Worth
+      </p>
+
+
+  <p className="text-gray-500 text-xs mt-1">
+    Portfolio Value
+  </p>
+</div>
+
+<div className="bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full">
+  <span className="text-green-400 text-xs font-semibold">
+    +8.45%
+  </span>
+</div>
+
+
+  </div>
+
+{/* Balance */}
+
+  <h2
+    className={`text-4xl font-bold transition-all duration-500 ${
+      earning
+        ? isUp
+          ? "text-green-400"
+          : "text-red-400"
+        : "text-white"
+    }`}
+  >
+    {formatUSD(earning ? displayValue : userBalance)}
+  </h2>
+
+{/* Profit */}
+
+  <div className="flex items-center gap-2 mt-2">
+    <span className="text-green-400 font-semibold">
+      +{formatUSD(earning?.earnedSoFar ?? 0)}
+    </span>
+
+
+<span className="text-gray-500 text-sm">
+  Total Profit
+</span>
+
+
+  </div>
+
+{/* Footer */}
+
+  <div className="grid grid-cols-3 gap-3 mt-6">
+
+
+<div className="bg-white/5 rounded-xl p-3">
+  <p className="text-gray-500 text-xs">
+    Available
+  </p>
+
+  <p className="font-semibold">
+    {formatUSD(userBalance)}
+  </p>
+</div>
+
+<div className="bg-white/5 rounded-xl p-3">
+  <p className="text-gray-500 text-xs">
+    Locked
+  </p>
+
+  <p className="font-semibold text-yellow-400">
+    {formatUSD(locked)}
+  </p>
+</div>
+
+<div className="bg-white/5 rounded-xl p-3">
+  <p className="text-gray-500 text-xs">
+    ROI
+  </p>
+
+  <p className="font-semibold text-green-400">
+    {roi.toFixed(2)}%
+  </p>
+</div>
+
+
+  </div>
+
+{earning?.status === "active" && ( <div className="mt-5 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3"> <p className="text-yellow-400 text-xs uppercase tracking-wide">
+Active Trading Session </p>
+
+  <p className="text-white text-sm mt-1">
+    Ends in {countdown}
+  </p>
+</div>
+)}
+</div>
+
+
+<div className="grid grid-cols-2 gap-3 mb-5">
+
+  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+    <p className="text-gray-500 text-xs uppercase">
+      Portfolio Value
+    </p>
+
+<h3 className="text-xl font-bold mt-2">
+  {formatUSD(
+    userBalance +
+    locked +
+    (earning?.earnedSoFar || 0)
+  )}
+</h3>
+
+<p className="text-green-400 text-xs mt-1">
+  +{roi.toFixed(2)}% Growth
+</p>
+
+
+  </div>
+
+  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+    <p className="text-gray-500 text-xs uppercase">
+      Active Capital
+    </p>
+
+
+<h3 className="text-xl font-bold mt-2">
+  {formatUSD(locked)}
+</h3>
+
+<p className="text-yellow-400 text-xs mt-1">
+  Currently Trading
+</p>
+
+
+  </div>
+
+  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+    <p className="text-gray-500 text-xs uppercase">
+      Total Profit
+    </p>
+
+
+<h3 className="text-xl font-bold mt-2 text-green-400">
+  +{formatUSD(earning?.earnedSoFar || 0)}
+</h3>
+
+<p className="text-gray-400 text-xs mt-1">
+  Since Activation
+</p>
+
+
+  </div>
+
+  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+    <p className="text-gray-500 text-xs uppercase">
+      Portfolio Health
+    </p>
+
+
+<h3 className="text-xl font-bold mt-2 text-green-400">
+  98 / 100
+</h3>
+
+<p className="text-green-400 text-xs mt-1">
+  Excellent
+</p>
+
+
+  </div>
+
+</div>
+
 
       <div className="bg-[#131A2A] p-4 rounded-2xl mb-5 border border-gray-800">
         <div className="flex justify-between items-center mb-2">
@@ -481,22 +656,51 @@ setLockedBalance(data.user?.lockedBalance ?? 0);
             Live Trading Chart
           </span>
         </div>
+        <div className="flex justify-between items-center mb-3">
+  <div>
+    <h3 className="font-semibold">
+      Market Performance
+    </h3>
+
+    <p className="text-xs text-gray-500">
+      Real-Time Trading Activity
+    </p>
+  </div>
+
+  <div className="flex gap-2">
+    
+  </div>
+</div>
+<div className="flex justify-between items-center mb-3">
+
+  <div>
+    <p className="text-gray-500 text-xs">
+      Current Portfolio Value
+    </p>
+
+    <h3 className="font-bold text-lg">
+      {formatUSD(
+        earning
+          ? displayValue
+          : userBalance
+      )}
+    </h3>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+
+    <span className="text-green-400 text-xs">
+      LIVE
+    </span>
+  </div>
+
+</div>
         <LiveCandleChart
           value={earning ? displayValue : userBalance}
           active={earning?.status === "active"}
         />
-      </div>
-
-      <div className="flex gap-3 mb-6">
-        <div className="bg-[#131A2A] p-4 rounded-xl flex-1">
-          <p className="text-gray-400 text-xs">Available</p>
-        <p>{formatUSD(userBalance)}</p>
-        </div>
-
-        <div className="bg-[#131A2A] p-4 rounded-xl flex-1">
-          <p className="text-gray-400 text-xs">Locked</p>
-          <p className="text-yellow-400">{formatUSD(locked)}</p>
-        </div>
+        
       </div>
 
       <div className="bg-[#131A2A] p-5 rounded-2xl">
@@ -510,6 +714,58 @@ setLockedBalance(data.user?.lockedBalance ?? 0);
         </h2>
 
         <p className="text-xs text-gray-400">ROI: {roi.toFixed(2)}%</p>
+<div className="mt-4 bg-[#131A2A] rounded-2xl p-4 border border-white/5">
+
+  <div className="flex justify-between items-center mb-3">
+    <h3 className="font-semibold">
+      AI Portfolio Insight
+    </h3>
+
+
+<span className="text-green-400 text-xs">
+  LIVE
+</span>
+
+<div className="bg-[#131A2A] p-4 rounded-2xl mt-4">
+
+  <div className="flex justify-between mb-2">
+    <span>Wealth Goal</span>
+
+    <span>$50,000</span>
+  </div>
+
+  <div className="h-3 bg-[#0B0F19] rounded-full overflow-hidden">
+
+    <div
+      className="h-full bg-yellow-400"
+      style={{
+        width: `${Math.min(
+          (
+  (
+    userBalance +
+    locked +
+    (earning?.earnedSoFar || 0)
+  ) / 50000
+) * 100
+          
+        )}%`,
+      }}
+    />
+
+  </div>
+
+</div>
+  </div>
+
+  <p className="text-sm text-gray-300 leading-relaxed">
+    Your portfolio has generated a positive return of
+    {` ${roi.toFixed(2)}% `}
+    and remains within an optimal risk range.
+    Based on current performance, projected growth
+    remains strong for the active trading cycle.
+  </p>
+
+</div>
 
         {!earning && userBalance > 0 && (
           <button
