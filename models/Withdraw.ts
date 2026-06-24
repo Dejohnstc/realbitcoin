@@ -13,6 +13,7 @@ export interface WithdrawDocument extends Document {
   network?: string;
 
   accountName?: string;
+  accountNumber?: string;
   bankName?: string;
   country?: string;
 
@@ -65,7 +66,11 @@ const WithdrawSchema: Schema<WithdrawDocument> = new Schema(
       type: String,
       default: null,
     },
-
+    
+accountNumber: {
+  type: String,
+  default: null,
+},
     bankName: {
       type: String,
       default: null,

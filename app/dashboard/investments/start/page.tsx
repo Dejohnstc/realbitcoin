@@ -24,33 +24,33 @@ function StartInvestmentContent() {
 
   const planConfig = {
   "Starter Plan": {
-    returnRate: 5,
+    returnRate: 300,
     durationMonths: 1,
     risk: "Low",
-    min: 100,
+    min: 200,
     max: 999,
   },
 
   "Silver Plan": {
     returnRate: 8,
-    durationMonths: 3,
+    durationMonths: 1,
     risk: "Medium",
     min: 1000,
     max: 4999,
   },
 
   "Gold Plan": {
-    returnRate: 12,
-    durationMonths: 6,
+    returnRate: 325,
+    durationMonths: 1,
     risk: "Medium",
     min: 5000,
     max: 19999,
   },
 
   "VIP Plan": {
-    returnRate: 18,
-    durationMonths: 12,
-    risk: "High",
+    returnRate: 470,
+    durationMonths: 1,
+    risk: "Safe",
     min: 20000,
     max: 100000,
   },
@@ -97,14 +97,16 @@ function StartInvestmentContent() {
 
   const walletAddresses = {
   USDT: {
-    TRC20: "YOUR_TRC20_WALLET",
-    ERC20: "YOUR_ERC20_WALLET",
+    Bep20:"0xf44dcb2a914dd6b5a782ca0dfd23c2d06813c853",
+    TRC20: "TCR1wfohbRjb9V2deMReGD74UWhAeUt8pd",
+    ERC20: "0xf44dcb2a914dd6b5a782ca0dfd23c2d06813c853",
   },
 
-  BTC: "YOUR_BTC_WALLET",
+  BTC: "16Dcw9DXiMb3i3cMDTKUvC8esEy6VGi5bi",
 
-  ETH: "YOUR_ETH_WALLET",
-};
+  ETH: "0xf44dcb2a914dd6b5a782ca0dfd23c2d06813c853",
+} as const;
+
   const walletAddress =
   coin === "USDT"
     ? walletAddresses.USDT[network]
@@ -165,11 +167,6 @@ function StartInvestmentContent() {
 
   if (!token) return alert("Login required");
 
-  const config =
-    planConfig[plan as keyof typeof planConfig];
-
-  if (!config) return alert("Invalid plan");
-
   try {
     setLoading(true);
 
@@ -182,13 +179,13 @@ function StartInvestmentContent() {
       body: JSON.stringify({
         amount,
         plan,
-        returnRate: config.returnRate,
-        durationMonths: config.durationMonths,
       }),
     });
 
+    const data = await res.json();
+
     if (!res.ok) {
-      return alert("Failed to start investment");
+      return alert(data.error || "Failed to start investment");
     }
 
     localStorage.removeItem("currentDepositId");
@@ -202,6 +199,7 @@ function StartInvestmentContent() {
     setLoading(false);
   }
 };
+
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-2">
 
@@ -253,12 +251,25 @@ function StartInvestmentContent() {
             onChange={(e) => setAmount(Number(e.target.value))}
           />
 
-          <div className="bg-[#131A2A] p-4 rounded-xl mb-4">
-            <p>Send {coin} to:</p>
-            <p className="text-green-400 break-all mt-2">
-              TCR1wfohbRjb9V2deMReGD74UWhAeUt8pd
-            </p>
-          </div>
+         <div className="bg-[#131A2A] p-4 rounded-xl mb-4">
+  <p>
+    Send {coin}
+    {coin === "USDT" ? ` (${network})` : ""}
+    {" "}to:
+  </p>
+
+  <p className="text-green-400 break-all mt-2">
+    {walletAddress}
+  </p>
+
+  <button
+    type="button"
+    onClick={copyAddress}
+    className="mt-3 px-4 py-2 bg-yellow-400 text-black rounded-lg text-sm font-semibold"
+  >
+    Copy Address
+  </button>
+</div>
 
           <button
             disabled={loading}

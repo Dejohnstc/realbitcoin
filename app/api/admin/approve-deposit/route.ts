@@ -6,147 +6,230 @@ import { NextResponse } from "next/server";
 import Notification from "@/models/Notification";
 import { sendDepositEmail } from "@/lib/mail";
 import mongoose from "mongoose";
-import { getIO } from "@/lib/socket"; // 🔥 NEW
+import { getIO } from "@/lib/socket";
 
 interface Body {
-  depositId: string;
-  action: "approve" | "reject";
+depositId: string;
+action: "approve" | "reject";
 }
 
-export async function POST(req: Request): Promise<NextResponse> {
-  const session = await mongoose.startSession();
+export async function POST(req: Request) {
+const session = await mongoose.startSession();
 
-  try {
-    await connectDB();
-    session.startTransaction();
+try {
+await connectDB();
 
-    const authHeader = req.headers.get("authorization");
 
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+session.startTransaction();
 
-    const token = authHeader.split(" ")[1];
-    const decoded = verifyToken(token);
+const authHeader = req.headers.get("authorization");
 
-    if (!decoded?.userId) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
+if (!authHeader) {
+  await session.abortTransaction();
+  session.endSession();
 
-    const admin = await User.findById(decoded.userId);
+  return NextResponse.json(
+    { error: "Unauthorized" },
+    { status: 401 }
+  );
+}
 
-    if (!admin || admin.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+const token = authHeader.split(" ")[1];
 
-    const { depositId, action }: Body = await req.json();
+const decoded = verifyToken(token);
 
-    const deposit = await Deposit.findById(depositId).session(session);
+if (!decoded?.userId) {
+  await session.abortTransaction();
+  session.endSession();
 
-    if (!deposit || deposit.status !== "pending") {
-      await session.abortTransaction();
-      return NextResponse.json({ error: "Invalid deposit" }, { status: 400 });
-    }
+  return NextResponse.json(
+    { error: "Invalid token" },
+    { status: 401 }
+  );
+}
 
-    const user = await User.findById(deposit.userId).session(session);
+const admin = await User.findById(
+  decoded.userId
+);
 
-    if (!user || !user.email) {
-      await session.abortTransaction();
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+if (!admin || admin.role !== "admin") {
+  await session.abortTransaction();
+  session.endSession();
 
-    if (action === "approve") {
-      deposit.status = "approved";
+  return NextResponse.json(
+    { error: "Forbidden" },
+    { status: 403 }
+  );
+}
 
-      // 🔥 UPDATE BALANCE
-      user.balance += deposit.amount;
-      await user.save({ session });
+const { depositId, action }: Body =
+  await req.json();
 
-      // 🔔 NOTIFICATION
-      const depositReference =
+const deposit =
+  await Deposit.findById(
+    depositId
+  ).session(session);
+
+if (
+  !deposit ||
+  deposit.status !== "pending"
+) {
+  await session.abortTransaction();
+  session.endSession();
+
+  return NextResponse.json(
+    { error: "Invalid deposit" },
+    { status: 400 }
+  );
+}
+
+const user =
+  await User.findById(
+    deposit.userId
+  ).session(session);
+
+if (!user || !user.email) {
+  await session.abortTransaction();
+  session.endSession();
+
+  return NextResponse.json(
+    { error: "User not found" },
+    { status: 404 }
+  );
+}
+
+const depositReference =
   "DEP" +
   Date.now() +
   Math.floor(Math.random() * 10000);
 
-      await Notification.create(
-        [
-          {
-            userId: deposit.userId,
-            type: "deposit",
-            message:
-  `Deposit Confirmed Successfully\n\n` +
-  `We are pleased to inform you that your deposit of $${deposit.amount.toLocaleString()} has been successfully verified and credited to your CoinlyBitora trading account.\n\n` +
-  `Reference ID: ${depositReference}\n` +
-  `Funding Method: ${deposit.coin}\n` +
-  `Network: ${deposit.network}\n` +
-  `Status: Successfully Credited\n\n` +
-  `Your account balance has been updated and the funds are now available for trading, investment plans, and withdrawals where applicable.`,
-           meta: {
-  amount: deposit.amount,
-  coin: deposit.coin,
-  network: deposit.network,
-  referenceId: depositReference,
-},
-          },
-        ],
-        { session }
-      );
-    } else {
-      deposit.status = "rejected";
+if (action === "approve") {
+  deposit.status = "approved";
 
-      await Notification.create(
-        [
-          {
-            userId: deposit.userId,
-            type: "deposit",
-           message:
-  `Deposit Verification Unsuccessful\n\n` +
-  `Following a review by our finance and compliance team, we were unable to verify and approve your recent deposit request.\n\n` +
-  `Deposit Amount: $${deposit.amount.toLocaleString()}\n` +
-  `Funding Method: ${deposit.coin}\n` +
-  `Network: ${deposit.network}\n` +
-  `Status: Rejected\n\n` +
-  `This may occur due to missing confirmations, incorrect transaction details, or network inconsistencies. If you require further clarification, please contact support and provide your transaction information for review.`,
-            meta: {
-              amount: deposit.amount,
-              coin: deposit.coin,
-              network: deposit.network,
-            },
-          },
-        ],
-        { session }
-      );
-    }
+  await User.findByIdAndUpdate(
+    user._id,
+    {
+      $inc: {
+        balance: deposit.amount,
+      },
+    },
+    { session }
+  );
 
-    await deposit.save({ session });
+  await Notification.create(
+    [
+      {
+        userId: deposit.userId,
+        type: "deposit",
 
-    await session.commitTransaction();
-    session.endSession();
+        message:
+          `Deposit Confirmed Successfully\n\n` +
+          `We are pleased to inform you that your deposit of $${deposit.amount.toLocaleString()} has been successfully verified and credited to your account.\n\n` +
+          `Reference ID: ${depositReference}\n` +
+          `Funding Method: ${deposit.coin}\n` +
+          `Network: ${deposit.network || deposit.coin}\n` +
+          `Status: Successfully Credited\n\n` +
+          `Your account balance has been updated and funds are now available.`,
 
-    // 🔥 AFTER COMMIT (SAFE ZONE)
+        meta: {
+          amount: deposit.amount,
+          coin: deposit.coin,
+          network:
+            deposit.network ||
+            deposit.coin,
+          referenceId:
+            depositReference,
+        },
+      },
+    ],
+    { session }
+  );
+} else {
+  deposit.status = "rejected";
 
-    if (action === "approve") {
-      try {
-        await sendDepositEmail(user.email, deposit.amount);
-      } catch (err) {
-        console.error("Email failed:", err);
-      }
-    }
+  await Notification.create(
+    [
+      {
+        userId: deposit.userId,
+        type: "deposit",
 
-    // 🔥 REAL-TIME NOTIFICATION
-    const io = getIO();
-    if (io) {
-      io.to(String(deposit.userId)).emit("new_notification");
-    }
+        message:
+          `Deposit Verification Unsuccessful\n\n` +
+          `We were unable to verify your recent deposit request.\n\n` +
+          `Deposit Amount: $${deposit.amount.toLocaleString()}\n` +
+          `Funding Method: ${deposit.coin}\n` +
+          `Network: ${deposit.network || deposit.coin}\n` +
+          `Status: Rejected\n\n` +
+          `Please contact support if you believe this was made in error.`,
 
-    return NextResponse.json({ message: "Done" });
+        meta: {
+          amount: deposit.amount,
+          coin: deposit.coin,
+          network:
+            deposit.network ||
+            deposit.coin,
+        },
+      },
+    ],
+    { session }
+  );
+}
 
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+await deposit.save({ session });
 
-    console.error("❌ APPROVE DEPOSIT ERROR:", error);
+await session.commitTransaction();
+session.endSession();
 
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+if (action === "approve") {
+  try {
+    await sendDepositEmail(
+      user.email,
+      deposit.amount
+    );
+  } catch (err) {
+    console.error(
+      "Email failed:",
+      err
+    );
   }
+}
+
+const io = getIO();
+
+if (io) {
+  io.to(
+    String(deposit.userId)
+  ).emit("new_notification");
+}
+
+return NextResponse.json({
+  success: true,
+  message:
+    action === "approve"
+      ? "Deposit approved"
+      : "Deposit rejected",
+});
+
+
+} catch (error) {
+await session.abortTransaction();
+session.endSession();
+
+
+console.error(
+  "APPROVE DEPOSIT ERROR:",
+  error
+);
+
+return NextResponse.json(
+  {
+    success: false,
+    error: "Failed",
+  },
+  {
+    status: 500,
+  }
+);
+
+}
 }

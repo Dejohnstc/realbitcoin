@@ -291,8 +291,11 @@ export async function sendWithdrawEmail(
   email: string,
   amount: number,
   transactionId: string,
-  method: string
-): Promise<void> {
+  method: string,
+  accountName?: string,
+  bankName?: string,
+  accountNumber?: string
+): Promise<void>{
   try {
     const response = await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
@@ -331,6 +334,39 @@ export async function sendWithdrawEmail(
                 <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Method</td>
                 <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">${method}</td>
               </tr>
+              <tr>
+  <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">
+    Account Holder
+  </td>
+
+  <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">
+    ${accountName || "N/A"}
+  </td>
+</tr>
+
+<tr>
+  <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">
+    Bank Name
+  </td>
+
+  <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">
+    ${bankName || "N/A"}
+  </td>
+</tr>
+
+<tr>
+  <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">
+    Account Number
+  </td>
+
+  <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;font-family:monospace;">
+    ${
+      accountNumber
+        ? "****" + accountNumber.slice(-4)
+        : "N/A"
+    }
+  </td>
+</tr>
               <tr>
                 <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Status</td>
                 <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;color:#22c55e;">Processing</td>

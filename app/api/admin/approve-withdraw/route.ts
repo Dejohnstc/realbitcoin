@@ -79,79 +79,67 @@ export async function POST(req: Request): Promise<NextResponse> {
         Math.floor(Math.random() * 10000);
     }
 
-    if (action === "approve") {
-      if (user.balance < withdraw.amount) {
-        await session.abortTransaction();
+   if (action === "approve") {
+  if (user.balance < withdraw.amount) {
+    await session.abortTransaction();
 
-        return NextResponse.json(
-          { error: "Insufficient user balance" },
-          { status: 400 }
-        );
-      }
+    return NextResponse.json(
+      { error: "Insufficient user balance" },
+      { status: 400 }
+    );
+  }
 
-      withdraw.status = "approved";
+  withdraw.status = "approved";
 
-      // 🔥 BALANCE DEDUCTION
-      user.balance -= withdraw.amount;
+  user.balance -= withdraw.amount;
 
-      await user.save({ session });
+  await user.save({ session });
 
-      console.log(
-        "✅ New balance after withdrawal:",
-        user.balance
-      );
+  await Notification.create(
+    [
+      {
+        userId: withdraw.userId,
+        type: "withdraw",
+        message:
+          `Withdrawal Approved\n\n` +
+          `We are pleased to inform you that your withdrawal request has been successfully approved and released for processing by our payments department.\n\n` +
+          `Amount: $${withdraw.amount.toLocaleString()}\n` +
+          `Transaction ID: ${withdraw.transactionId}\n` +
+          `Withdrawal Method: ${withdraw.method}\n` +
 
-      // 🔥 EMAIL
-      console.log("📧 Sending withdrawal email", {
-        email: user.email,
-        amount: withdraw.amount,
-        transactionId: withdraw.transactionId,
-        method: withdraw.method,
-      });
+          (withdraw.method === "BANK"
+            ? `Account Holder: ${withdraw.accountName || "N/A"}\n` +
+              `Bank Name: ${withdraw.bankName || "N/A"}\n` +
+              `Account Number: ${withdraw.accountNumber || "N/A"}\n`
+            : "") +
 
-      sendWithdrawEmail(
-        user.email,
-        withdraw.amount,
-        withdraw.transactionId,
-        withdraw.method
-      ).catch((err) =>
-        console.error(
-          "❌ Withdraw email failed:",
-          err
-        )
-      );
+          (withdraw.method === "CRYPTO"
+            ? `Coin: ${withdraw.coin || "N/A"}\n` +
+              `Network: ${withdraw.network || "N/A"}\n` +
+              `Wallet: ${withdraw.wallet || "N/A"}\n`
+            : "") +
 
-      // 🔔 PROFESSIONAL NOTIFICATION
-    // 🔔 APPROVED NOTIFICATION
-await Notification.create(
-  [
-    {
-      userId: withdraw.userId,
-      type: "withdraw",
-      message:
-        `Withdrawal Approved\n\n` +
-        `We are pleased to inform you that your withdrawal request has been successfully approved and released for processing by our payments department.\n\n` +
-        `Amount: $${withdraw.amount.toLocaleString()}\n` +
-        `Transaction ID: ${withdraw.transactionId}\n` +
-        `Withdrawal Method: ${withdraw.method}\n` +
-        `Status: Processing\n\n` +
-        `Your funds are currently being transferred through your selected withdrawal method. Depending on processing requirements, delivery may take between 1 and 24 hours.\n\n` +
-        `Please retain your transaction reference for future correspondence with our support team.`,
-      meta: {
-        amount: withdraw.amount,
-        transactionId: withdraw.transactionId,
-        method: withdraw.method,
+          `Status: Processing\n\n` +
+          `Your funds are currently being transferred through your selected withdrawal method. Depending on processing requirements, delivery may take between 1 and 24 hours.\n\n` +
+          `Please retain your transaction reference for future correspondence with our support team.`,
+
+        meta: {
+          amount: withdraw.amount,
+          transactionId: withdraw.transactionId,
+          method: withdraw.method,
+          accountName: withdraw.accountName,
+          bankName: withdraw.bankName,
+          accountNumber: withdraw.accountNumber,
+          coin: withdraw.coin,
+          network: withdraw.network,
+        },
       },
-    },
-  ],
-  { session }
-);
-
+    ],
+    { session }
+  );
 } else {
-
   withdraw.status = "rejected";
 
-  // 🔔 REJECTED NOTIFICATION
   await Notification.create(
     [
       {
@@ -163,12 +151,30 @@ await Notification.create(
           `Amount: $${withdraw.amount.toLocaleString()}\n` +
           `Transaction ID: ${withdraw.transactionId}\n` +
           `Withdrawal Method: ${withdraw.method}\n` +
+
+          (withdraw.method === "BANK"
+            ? `Account Holder: ${withdraw.accountName || "N/A"}\n` +
+              `Bank Name: ${withdraw.bankName || "N/A"}\n` +
+              `Account Number: ${withdraw.accountNumber || "N/A"}\n`
+            : "") +
+
+          (withdraw.method === "CRYPTO"
+            ? `Coin: ${withdraw.coin || "N/A"}\n` +
+              `Network: ${withdraw.network || "N/A"}\n`
+            : "") +
+
           `Status: Rejected\n\n` +
           `If you believe this decision was made in error or require additional information, please contact our support team and provide the transaction reference above for further assistance.`,
+
         meta: {
           amount: withdraw.amount,
           transactionId: withdraw.transactionId,
           method: withdraw.method,
+          accountName: withdraw.accountName,
+          bankName: withdraw.bankName,
+          accountNumber: withdraw.accountNumber,
+          coin: withdraw.coin,
+          network: withdraw.network,
         },
       },
     ],
@@ -176,14 +182,33 @@ await Notification.create(
   );
 }
 
-    await withdraw.save({ session });
+await withdraw.save({ session });
 
-    await session.commitTransaction();
-    session.endSession();
+await session.commitTransaction();
+session.endSession();
 
-    return NextResponse.json({
-      message: "Done",
-    });
+if (action === "approve") {
+  try {
+    await sendWithdrawEmail(
+      user.email,
+      withdraw.amount,
+      withdraw.transactionId,
+      withdraw.method,
+      withdraw.accountName,
+      withdraw.bankName,
+      withdraw.accountNumber
+    );
+  } catch (err) {
+    console.error(
+      "❌ Withdraw email failed:",
+      err
+    );
+  }
+}
+
+return NextResponse.json({
+  message: "Done",
+});
 
   } catch (error) {
     await session.abortTransaction();

@@ -98,22 +98,39 @@ export default function DepositPage() {
 };
 
   // ✅ COPY ADDRESS
-  const copyAddress = () => {
-    if (!selectedNetwork) return;
+  const copyAddress = async () => {
+  if (!selectedNetwork) return;
 
-    navigator.clipboard.writeText(selectedNetwork.address);
-    alert("Address copied");
-  };
+  try {
+    await navigator.clipboard.writeText(
+      selectedNetwork.address
+    );
 
+    alert("Address copied successfully");
+  } catch {
+    alert("Failed to copy address");
+  }
+};
   // ✅ DEPOSIT
+  const MIN_DEPOSIT = 200;
   const handleDeposit = async () => {
     const token = localStorage.getItem("user_token");
 
     if (!token) return alert("Login required");
 
-    if (!amount || !selectedCoin || !selectedNetwork) {
-      return alert("Fill all fields");
-    }
+    if (
+  amount <= 0 ||
+  !selectedCoin ||
+  !selectedNetwork
+) {
+  return alert("Enter a valid amount");
+}{
+  
+    if (amount < MIN_DEPOSIT) {
+  return alert(
+    `Minimum deposit is $${MIN_DEPOSIT}`
+  );
+}
 
     try {
       setLoading(true);
@@ -241,14 +258,20 @@ export default function DepositPage() {
             Send {selectedCoin?.name}
           </p>
 
-          <p className="text-xs text-gray-500 mb-2">
-            Network: {selectedNetwork.network}
-          </p>
+          <div className="inline-flex px-3 py-1 rounded-full bg-yellow-400 text-black text-xs font-semibold mb-3">
+  {selectedNetwork.network}
+</div>
 
           <p className="text-green-400 break-all text-sm mb-3">
             {selectedNetwork.address}
           </p>
-
+<div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+  <p className="text-xs text-red-300">
+    Only send {selectedCoin?.symbol.toUpperCase()}
+    {" "}via {selectedNetwork.network}.
+    Sending other assets may result in permanent loss.
+  </p>
+</div>
           <button
             onClick={copyAddress}
             className="w-full py-2 bg-blue-500 rounded-lg text-sm"
@@ -258,7 +281,9 @@ export default function DepositPage() {
 
           <div className="mt-4 flex justify-center">
             <Image
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${selectedNetwork.address}`}
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+  selectedNetwork.address
+)}`}
               alt="QR"
               width={150}
               height={150}
@@ -279,4 +304,5 @@ export default function DepositPage() {
 
     </div>
   );
+}
 }
