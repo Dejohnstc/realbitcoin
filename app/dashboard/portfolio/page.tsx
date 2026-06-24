@@ -15,7 +15,10 @@ interface Earning {
 }
 
 interface UserMeResponse {
-  user?: { balance?: number };
+  user?: {
+    balance?: number;
+    lockedBalance?: number;
+  };
 }
 
 interface EarnStatusResponse {
@@ -238,7 +241,7 @@ export default function PortfolioPage() {
 
   const [ticker, setTicker] = useState<string[]>([]);
   const [countdown, setCountdown] = useState("");
-
+const [lockedBalance, setLockedBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -270,6 +273,7 @@ export default function PortfolioPage() {
       if (!res.ok) throw new Error(`user/me ${res.status}`);
       const data: UserMeResponse = await res.json();
       if (mountedRef.current) setUserBalance(data.user?.balance ?? 0);
+setLockedBalance(data.user?.lockedBalance ?? 0);
     } catch (err) {
       console.error("Failed to load user:", err);
       if (mountedRef.current) setError("Could not load your balance.");
@@ -381,10 +385,7 @@ export default function PortfolioPage() {
     };
   }, [earning]);
 
-  const locked =
-    earning?.status === "active"
-      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
-      : 0;
+  const locked = lockedBalance;
 
   const roi =
     earning && earning.depositAmount > 0
@@ -477,7 +478,7 @@ export default function PortfolioPage() {
             <TrendingUp size={14} className="text-green-400" /> Performance
           </p>
           <span className="text-[10px] uppercase tracking-wide text-gray-500">
-            Simulated
+            Live Trading Chart
           </span>
         </div>
         <LiveCandleChart
@@ -489,7 +490,7 @@ export default function PortfolioPage() {
       <div className="flex gap-3 mb-6">
         <div className="bg-[#131A2A] p-4 rounded-xl flex-1">
           <p className="text-gray-400 text-xs">Available</p>
-          <p>{earning ? formatUSD(0) : formatUSD(userBalance)}</p>
+        <p>{formatUSD(userBalance)}</p>
         </div>
 
         <div className="bg-[#131A2A] p-4 rounded-xl flex-1">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -29,6 +30,22 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [hideBalance, setHideBalance] = useState(false);
   const [flash, setFlash] = useState(false);
+const router = useRouter();
+
+useEffect(() => {
+  const saved = localStorage.getItem("hideBalance");
+
+  if (saved) {
+    setHideBalance(saved === "true");
+  }
+}, []);
+
+useEffect(() => {
+  localStorage.setItem(
+    "hideBalance",
+    String(hideBalance)
+  );
+}, [hideBalance]);
 
   useEffect(() => {
     const load = async () => {
@@ -79,8 +96,10 @@ export default function AssetsPage() {
   const locked = user.lockedBalance || 0;
   const totalUSD = available + locked;
 
-  const btcPrice =
-    markets.find((m) => m.symbol === "btc")?.current_price || 0;
+ const btcPrice =
+markets.find((m) =>
+m.symbol?.toLowerCase().includes("btc")
+)?.current_price || 0;
 
   const totalBTC = btcPrice ? totalUSD / btcPrice : 0;
 
@@ -101,7 +120,16 @@ export default function AssetsPage() {
     <div className="min-h-screen bg-black text-white px-4 pt-4 pb-24">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="
+flex justify-between items-center
+bg-[#131A2A]
+p-4
+rounded-xl
+hover:bg-[#1A2235]
+hover:scale-[1.01]
+transition-all
+cursor-pointer
+">
         <p className="text-gray-500 text-sm">{maskedEmail}</p>
 
         <button
@@ -116,7 +144,15 @@ export default function AssetsPage() {
       <div className="bg-gradient-to-br from-[#131A2A] to-[#0B0F19] p-5 rounded-2xl mb-6 border border-white/5 shadow-lg">
 
         <p className="text-gray-400 text-sm">Total Assets</p>
+<div className="mt-4 flex items-center gap-2">
+  <span className="text-green-400 font-semibold">
+    +5.42%
+  </span>
 
+  <span className="text-gray-400 text-sm">
+    This Month
+  </span>
+</div>
         <h1
           className={`text-4xl font-bold mt-2 transition ${
             flash ? "text-yellow-400" : ""
@@ -144,6 +180,21 @@ export default function AssetsPage() {
               {hideBalance ? "****" : `${locked.toFixed(2)} USD`}
             </p>
           </div>
+          <div className="grid grid-cols-2 gap-3 mt-5"> <div className="bg-[#1A2235] p-3 rounded-xl"> <p className="text-xs text-gray-400"> Active Investments </p>
+
+<p className="text-lg font-bold text-yellow-400">
+  3
+</p>
+
+</div>
+
+<div className="bg-[#1A2235] p-3 rounded-xl"> <p className="text-xs text-gray-400"> Monthly Return </p>
+
+<p className="text-lg font-bold text-green-400">
+  +5.42%
+</p>
+
+</div> </div>
         </div>
       </div>
 
@@ -180,7 +231,7 @@ export default function AssetsPage() {
           return (
             <button
               key={i}
-              onClick={() => (window.location.href = btn.path)}
+              onClick={() => router.push(btn.path)}
               className="flex flex-col items-center gap-2"
             >
               <div
@@ -194,59 +245,78 @@ export default function AssetsPage() {
           );
         })}
       </div>
+<div className="flex justify-between items-center mb-4"> <h2 className="font-semibold"> Market Assets </h2>
 
+<span className="text-gray-400 text-sm"> {markets.length} Assets </span> </div>
       {/* ASSETS */}
-      <div className="space-y-4">
-        {markets.slice(0, 6).map((m) => {
-          const symbolKey = m.symbol?.toLowerCase().split("/")[0];
+     <div className="space-y-4"> {markets.length === 0 ? ( <div className="bg-[#131A2A] p-6 rounded-xl text-center text-gray-400"> No market data available </div> ) : ( markets.slice(0, 6).map((m) => { const symbolKey = m.symbol?.toLowerCase().split("/")[0];
 
-          return (
-            <div
-              key={m.symbol}
-              className="flex justify-between items-center bg-[#131A2A] p-4 rounded-xl hover:bg-[#1A2235] transition cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
+  return (
+    <div
+      key={m.symbol}
+      className="
+        flex justify-between items-center
+        bg-[#131A2A]
+        p-4
+        rounded-xl
+        hover:bg-[#1A2235]
+        hover:scale-[1.01]
+        transition-all
+        cursor-pointer
+      "
+    >
+      <div className="flex items-center gap-3">
+        <img
+          src={
+            coinIcons[symbolKey] ||
+            coinIcons["btc"]
+          }
+          alt={m.symbol}
+          className="w-7 h-7"
+        />
 
-                <img
-                  src={coinIcons[symbolKey] || coinIcons["btc"]}
-                  alt={m.symbol}
-                  className="w-7 h-7"
-                />
+        <div>
+          <p className="font-semibold">
+            {m.symbol.toUpperCase()}
+          </p>
 
-                <div>
-                  <p className="font-semibold">
-                    {m.symbol.toUpperCase()}
-                  </p>
-
-                  <p
-                    className={`text-xs ${
-                      m.price_change_percentage_24h > 0
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }`}
-                  >
-                    {m.price_change_percentage_24h.toFixed(2)}%
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p>
-                  {hideBalance
-                    ? "****"
-                    : m.current_price
-                    ? (totalUSD / m.current_price).toFixed(6)
-                    : "0.000000"}
-                </p>
-
-                <p className="text-xs text-gray-400">
-                  ${m.current_price?.toLocaleString() || "0.00"}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+          <p
+            className={`text-xs ${
+              m.price_change_percentage_24h > 0
+                ? "text-green-400"
+                : "text-red-400"
+            }`}
+          >
+            {m.price_change_percentage_24h.toFixed(2)}%
+          </p>
+        </div>
       </div>
+
+      <div className="text-right">
+        <p>
+          {hideBalance
+            ? "****"
+            : m.current_price
+            ? (
+                totalUSD /
+                m.current_price
+              ).toFixed(6)
+            : "0.000000"}
+        </p>
+
+        <p className="text-xs text-gray-400">
+          $
+          {m.current_price?.toLocaleString() ||
+            "0.00"}
+        </p>
+      </div>
+    </div>
+  );
+})
+
+)}
+
+</div>
 
     </div>
   );
