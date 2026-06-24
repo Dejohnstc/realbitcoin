@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 type Status = "idle" | "pending" | "approved";
 type Coin = "USDT" | "BTC" | "ETH";
-type Network = "TRC20" | "ERC20" | "BTC";
+type Network = "TRC20" | "ERC20";
 
 function StartInvestmentContent() {
   const params = useSearchParams();
@@ -19,14 +19,42 @@ function StartInvestmentContent() {
   const [loading, setLoading] = useState(false);
 
   const [coin, setCoin] = useState<Coin>("USDT");
-  const [network, setNetwork] = useState<Network>("TRC20");
+  const [network, setNetwork] =
+  useState<Network>("TRC20");
 
-  const planConfig: Record<string, { profit: number; duration: number }> = {
-    "Starter Plan": { profit: 10, duration: 24 },
-    "Silver Plan": { profit: 25, duration: 72 },
-    "Gold Plan": { profit: 50, duration: 168 },
-    "VIP Plan": { profit: 80, duration: 336 },
-  };
+  const planConfig = {
+  "Starter Plan": {
+    returnRate: 5,
+    durationMonths: 1,
+    risk: "Low",
+    min: 100,
+    max: 999,
+  },
+
+  "Silver Plan": {
+    returnRate: 8,
+    durationMonths: 3,
+    risk: "Medium",
+    min: 1000,
+    max: 4999,
+  },
+
+  "Gold Plan": {
+    returnRate: 12,
+    durationMonths: 6,
+    risk: "Medium",
+    min: 5000,
+    max: 19999,
+  },
+
+  "VIP Plan": {
+    returnRate: 18,
+    durationMonths: 12,
+    risk: "High",
+    min: 20000,
+    max: 100000,
+  },
+} as const;
 
   // ✅ STATUS CHECK
   useEffect(() => {
@@ -66,6 +94,30 @@ function StartInvestmentContent() {
       clearInterval(interval);
     };
   }, []);
+
+  const walletAddresses = {
+  USDT: {
+    TRC20: "YOUR_TRC20_WALLET",
+    ERC20: "YOUR_ERC20_WALLET",
+  },
+
+  BTC: "YOUR_BTC_WALLET",
+
+  ETH: "YOUR_ETH_WALLET",
+};
+  const walletAddress =
+  coin === "USDT"
+    ? walletAddresses.USDT[network]
+    : walletAddresses[coin];
+
+  const copyAddress = async () => {
+  try {
+    await navigator.clipboard.writeText(walletAddress);
+    alert("Wallet address copied");
+  } catch {
+    alert("Failed to copy");
+  }
+};
 
   const handleDeposit = async () => {
     const token = localStorage.getItem("user_token");
@@ -108,48 +160,48 @@ function StartInvestmentContent() {
     }
   };
 
-  const handleStartInvestment = async () => {
-    const token = localStorage.getItem("user_token");
+ const handleStartInvestment = async () => {
+  const token = localStorage.getItem("user_token");
 
-    if (!token) return alert("Login required");
+  if (!token) return alert("Login required");
 
-    const config = planConfig[plan];
+  const config =
+    planConfig[plan as keyof typeof planConfig];
 
-    if (!config) return alert("Invalid plan");
+  if (!config) return alert("Invalid plan");
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const res = await fetch("/api/invest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          amount,
-          plan,
-          profit: config.profit,
-          durationHours: config.duration,
-        }),
-      });
+    const res = await fetch("/api/invest", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        amount,
+        plan,
+        returnRate: config.returnRate,
+        durationMonths: config.durationMonths,
+      }),
+    });
 
-      if (!res.ok) {
-        return alert("Failed to start investment");
-      }
-
-      localStorage.removeItem("currentDepositId");
-
-      alert("Investment started successfully");
-
-      router.push("/dashboard");
-    } catch {
-      alert("Failed to start investment");
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      return alert("Failed to start investment");
     }
-  };
 
+    localStorage.removeItem("currentDepositId");
+
+    alert("Investment started successfully");
+
+    router.push("/dashboard");
+  } catch {
+    alert("Failed to start investment");
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-2">
 
