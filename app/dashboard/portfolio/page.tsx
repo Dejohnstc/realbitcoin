@@ -115,7 +115,7 @@ function LiveCandleChart({
   const candlesRef = useRef<Candle[]>([]);
   const currentRef = useRef<Candle | null>(null);
   const tickCountRef = useRef(0);
-  const lastTickRef = useRef(0);
+  const lastSeenPriceRef = useRef<number>(value);
   const rafRef = useRef<number | null>(null);
   const peakPriceRef = useRef(value);
 
@@ -125,7 +125,6 @@ function LiveCandleChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const TICK_MS = 2000;
     const TICKS_PER_CANDLE = 30;
     const MAX_CANDLES = 60;
 
@@ -149,9 +148,9 @@ function LiveCandleChart({
         seed = close;
       }
 
-      const lastPrice = candlesRef.current[candlesRef.current.length - 1].close;
-      currentRef.current = { open: lastPrice, high: lastPrice, low: lastPrice, close: lastPrice };
-      peakPriceRef.current = lastPrice;
+      currentRef.current = { open: value, high: value, low: value, close: value };
+      peakPriceRef.current = value;
+      lastSeenPriceRef.current = value;
     }
 
     const resize = () => {
@@ -246,30 +245,31 @@ function LiveCandleChart({
       ctx.fillText(labelText, plotW + textWidth / 2, ly + 3);
     };
 
-    const loop = (ts: number) => {
+    const loop = () => {
       if (document.hidden) {
-        lastTickRef.current = ts;
         rafRef.current = requestAnimationFrame(loop);
         return;
       }
 
-      if (!lastTickRef.current) lastTickRef.current = ts;
+      // SINGLE SOURCE OF TRUTH: the parent advances simulator.price.
+      // The chart only READS it, so the live price drawn here is always
+      // identical to the value shown on the Total Net Worth card.
+      const price = simulator.price;
 
-      if (active && ts - lastTickRef.current >= TICK_MS) {
-        lastTickRef.current = ts;
-        const newPrice = simulator.price;
+      if (price > peakPriceRef.current) {
+        peakPriceRef.current = price;
+      }
 
-        if (newPrice > peakPriceRef.current) {
-          peakPriceRef.current = newPrice;
-        }
+      const cur = currentRef.current;
+      if (cur) {
+        cur.close = price;
+        cur.high = Math.max(cur.high, price);
+        cur.low = Math.min(cur.low, price);
+      }
 
-        const cur = currentRef.current;
-        if (cur) {
-          cur.close = newPrice;
-          cur.high = Math.max(cur.high, newPrice);
-          cur.low = Math.min(cur.low, newPrice);
-        }
-
+      // Form a new candle every TICKS_PER_CANDLE price updates from the parent.
+      if (active && price !== lastSeenPriceRef.current) {
+        lastSeenPriceRef.current = price;
         tickCountRef.current++;
 
         if (tickCountRef.current >= TICKS_PER_CANDLE && cur) {
@@ -278,10 +278,10 @@ function LiveCandleChart({
             candlesRef.current.shift();
           }
           currentRef.current = {
-            open: newPrice,
-            high: newPrice,
-            low: newPrice,
-            close: newPrice,
+            open: price,
+            high: price,
+            low: price,
+            close: price,
           };
           tickCountRef.current = 0;
         }
@@ -431,82 +431,83 @@ export default function PortfolioPage() {
     return () => clearInterval(interval);
   }, [earning]);
 
-  // Fix: Explicitly track loop IDs to eliminate ghost execution lines
+  // Single price driver.
+  // This effect is the ONLY place that advances simulator.price. It writes that
+  // exact value to the Total Net Worth card, and the chart reads the same
+  // simulator.price — so the card balance and the live chart price are always
+  // identical (e.g. chart shows 5,017.32 -> card shows $5,017.32).
   useEffect(() => {
     if (loading || !simulatorRef.current) return;
+    const sim = simulatorRef.current;
 
+    // Not trading: hold both the card and the chart at the real total.
     if (!earning || earning.status !== "active") {
+      loopInstanceIdRef.current = null;
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      sim.price = realTotal; // chart reads this too, so they stay aligned at rest
       const t = setTimeout(() => {
-        if (domBalanceRef.current) domBalanceRef.current.innerText = formatUSD(realTotal);
+        if (domBalanceRef.current) {
+          domBalanceRef.current.innerText = formatUSD(realTotal);
+          domBalanceRef.current.className = "text-4xl font-bold text-white";
+        }
         if (domChartBalanceRef.current) domChartBalanceRef.current.innerText = formatUSD(realTotal);
+        if (domPercentRef.current) {
+          domPercentRef.current.innerText = "0.00%";
+          domPercentRef.current.className = "text-xs font-semibold text-gray-300";
+        }
+        if (domChangeRef.current) {
+          domChangeRef.current.innerText = "$0.00";
+          domChangeRef.current.className = "text-sm text-gray-400";
+        }
       }, 50);
       return () => clearTimeout(t);
     }
 
-    // Set unique signature token for the active thread instance loop
+    // Active trading: drive one tick every TICK_MS.
     const instanceId = Math.random().toString(36).substring(2, 9);
     loopInstanceIdRef.current = instanceId;
-
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
-    let current = realTotal;
-    let maxValue = realTotal;
-    let previous = realTotal;
+    const TICK_MS = 2000;   // how often a new price prints (matches a chart step)
+    const BAND = 0.08;      // keep the wander within ±8% of the real total
 
-    const animate = () => {
-      // Self-terminate tracking block if a cleanup has overwritten this loop instance run
+    let previous = sim.price || realTotal;
+    let maxValue = previous;
+    let lastTick = 0;
+
+    const animate = (ts: number) => {
       if (loopInstanceIdRef.current !== instanceId) return;
-
       if (document.hidden) {
         frameRef.current = requestAnimationFrame(animate);
         return;
       }
+      if (!lastTick) lastTick = ts;
 
-      const simulator = simulatorRef.current;
-      if (simulator) {
-        const newPrice = simulator.nextPrice();
-        const volatility = 0.0008;
-        const movement = (newPrice / 1000) * volatility;
+      if (ts - lastTick >= TICK_MS) {
+        lastTick = ts;
 
-        let trend = 0;
-        if (Math.random() < 0.001) {
-          trend = (Math.random() - 0.5) * 0.005;
-        }
+        // advance, then softly anchor toward the real total and clamp to the band
+        const raw = sim.nextPrice();
+        const anchored = raw + (realTotal - raw) * 0.03;
+        const lo = realTotal * (1 - BAND);
+        const hi = realTotal * (1 + BAND);
+        const price = Math.min(Math.max(anchored, lo), hi);
+        sim.price = price; // <-- single source of truth; the chart reads this
 
-        // FIX: reversion must be a FRACTION of the deviation, not raw dollars.
-        // Previously: (realTotal - current) * 0.0005 produced a dollar value that
-        // was then treated as a percentage change, so a ~$100 drift = 5%/tick and
-        // the balance oscillated wildly (the $885.88 / +16% bug). Dividing by
-        // realTotal makes the pull proportional and the value settles smoothly.
-        const reversion = ((realTotal - current) / realTotal) * 0.0005;
-        const change = movement + trend + reversion;
-        const nextValue = Math.max(current * (1 + change), 0.01);
-
-        const maxDeviation = 0.15;
-        const deviation = (nextValue - realTotal) / realTotal;
-        let finalValue = nextValue;
-        if (deviation > maxDeviation) {
-          finalValue = realTotal * (1 + maxDeviation);
-        } else if (deviation < -maxDeviation * 0.5) {
-          finalValue = realTotal * (1 - maxDeviation * 0.5);
-        }
-
-        current = finalValue;
-
-        if (current > maxValue) maxValue = current;
-        const drawdown = (maxValue - current) / maxValue;
+        if (price > maxValue) maxValue = price;
+        const drawdown = maxValue > 0 ? (maxValue - price) / maxValue : 0;
         if (drawdown > maxDrawdown) setMaxDrawdown(drawdown);
 
-        const changeAmount = current - previous;
+        const changeAmount = price - previous;
         const changePercent = previous > 0 ? (changeAmount / previous) * 100 : 0;
-        const isUpNow = current >= previous;
+        const isUpNow = price >= previous;
 
         if (domBalanceRef.current) {
-          domBalanceRef.current.innerText = formatUSD(current);
+          domBalanceRef.current.innerText = formatUSD(price);
           domBalanceRef.current.className = `text-4xl font-bold transition-all duration-300 ${isUpNow ? "text-green-400" : "text-red-400"}`;
         }
         if (domChartBalanceRef.current) {
-          domChartBalanceRef.current.innerText = formatUSD(current);
+          domChartBalanceRef.current.innerText = formatUSD(price);
         }
         if (domPercentRef.current) {
           domPercentRef.current.innerText = `${isUpNow ? "+" : ""}${changePercent.toFixed(2)}%`;
@@ -517,19 +518,16 @@ export default function PortfolioPage() {
           domChangeRef.current.className = `text-sm ${isUpNow ? "text-green-400" : "text-red-400"}`;
         }
 
-        previous = current;
+        previous = price;
       }
 
       frameRef.current = requestAnimationFrame(animate);
     };
 
-    const frameDelay = setTimeout(() => {
-      frameRef.current = requestAnimationFrame(animate);
-    }, 60);
+    frameRef.current = requestAnimationFrame(animate);
 
     return () => {
-      loopInstanceIdRef.current = null; // Unlocks thread allocation instantly
-      clearTimeout(frameDelay);
+      loopInstanceIdRef.current = null;
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
   }, [earning, realTotal, loading, maxDrawdown]);
