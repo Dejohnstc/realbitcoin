@@ -314,10 +314,11 @@ setLockedBalance(data.user?.lockedBalance ?? 0);
   }, [refreshUser, refreshEarning]);
 
   // poll earning status
-  useEffect(() => {
-    const interval = setInterval(refreshEarning, 5000);
-    return () => clearInterval(interval);
-  }, [refreshEarning]);
+  // Change from 5000ms to 30000ms (30 seconds)
+useEffect(() => {
+  const interval = setInterval(refreshEarning, 30000);
+  return () => clearInterval(interval);
+}, [refreshEarning]);
 
   /* ---------- countdown ---------- */
   useEffect(() => {
