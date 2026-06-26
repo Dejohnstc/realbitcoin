@@ -83,57 +83,95 @@ function smaAt(view: Candle[], period: number, idx: number): number | null {
 }
 
 /* =============================================================
-   REALISTIC PRICE SIMULATOR
+   MT5-LIKE PRICE ENGINE
+   Geometric path on log-deviation x = ln(price / ref):
+     - persistent momentum (trend runs that drift and flip)
+     - volatility clustering (calm spells + bursts/spikes)
+     - occasional jumps (news-style gaps)
+     - loose mean-reversion toward `ref` (no hard ±% leash)
+   Tuned so a $5,000 reference naturally roams ~$3,000–$8,000,
+   typically dwelling ~$3,800–$6,700, mean back near $5,000.
+   Tune SIM_PARAMS to widen/narrow the swings.
    ============================================================= */
+const SIM_PARAMS = {
+  BASE_VOL: 0.0058,     // baseline per-√sec volatility
+  THETA_V: 0.06,        // vol mean-reversion speed
+  VOL_OF_VOL: 0.0021,   // how jumpy the volatility itself is
+  SPIKE_PROB: 0.008,    // chance/sec of a volatility burst
+  MIN_VOL: 0.0025,
+  MAX_VOL: 0.026,
+  THETA_M: 0.08,        // momentum decay (lower = longer trends)
+  SIGMA_M: 0.0048,      // momentum noise
+  REGIME_PROB: 0.015,   // chance/sec of a trend (regime) shift
+  REGIME_KICK: 0.026,   // size of a regime shift
+  MOM_MAX: 0.030,       // cap on trend strength
+  THETA_X: 0.040,       // pull back toward ref (lower = wider roam)
+  JUMP_PROB: 0.0024,    // chance/sec of a price gap
+  JUMP_SIZE: 0.040,     // gap size
+  LO: 0.30,             // ultimate safety floor (0.30 x ref)
+  HI: 2.50,             // ultimate safety ceiling (2.50 x ref)
+};
+
 class PriceSimulator {
   public price: number;
-  private trend: number;
-  private volatility: number;
-  private mean: number;
-  private trendStrength: number;
-  private meanReversion: number;
+  private ref: number;
+  private x: number;
+  private mom: number;
+  private vol: number;
   private lastUpdate: number;
 
   constructor(initialPrice: number) {
-    this.price = initialPrice || 1000;
-    this.trend = 0;
-    this.volatility = 0.0008;
-    this.mean = this.price;
-    this.trendStrength = 0.00005;
-    this.meanReversion = 0.005;
+    this.ref = initialPrice || 1000;
+    this.price = this.ref;
+    this.x = 0;
+    this.mom = 0;
+    this.vol = SIM_PARAMS.BASE_VOL;
     this.lastUpdate = Date.now();
   }
 
-  nextPrice(): number {
-    const now = Date.now();
-    const dt = Math.min((now - this.lastUpdate) / 1000, 1);
-    this.lastUpdate = now;
+  // Reset cleanly back to a reference (used when no session is active).
+  reset(ref: number) {
+    if (ref > 0) this.ref = ref;
+    this.x = 0;
+    this.mom = 0;
+    this.vol = SIM_PARAMS.BASE_VOL;
+    this.price = this.ref;
+    this.lastUpdate = Date.now();
+  }
 
-    if (Math.random() < 0.005 * dt) {
-      this.trend = (Math.random() - 0.5) * 0.0004;
-      this.mean = this.price * (1 + (Math.random() - 0.5) * 0.003);
+  // targetRef: slowly track the real portfolio total so the whole band drifts
+  //            with the account (e.g. as earnings accrue).
+  // dtOverride: fixed timestep for synchronous history seeding.
+  nextPrice(targetRef?: number, dtOverride?: number): number {
+    const P = SIM_PARAMS;
+    let dt: number;
+    if (dtOverride != null) {
+      dt = dtOverride;
+    } else {
+      const now = Date.now();
+      dt = Math.min((now - this.lastUpdate) / 1000, 1.5);
+      this.lastUpdate = now;
+      if (dt <= 0) dt = 0.001;
     }
 
-    let vol = this.volatility;
-    if (Math.random() < 0.001 * dt) {
-      vol = this.volatility * (2 + Math.random() * 2);
-    }
+    if (targetRef && targetRef > 0) this.ref += (targetRef - this.ref) * 0.01;
 
-    const drift = this.trend + (this.meanReversion * (this.mean - this.price)) / this.price;
-    const noise = vol * Math.sqrt(dt) * this.randomNormal();
-    const change = drift * dt + noise;
+    // volatility clustering
+    this.vol += P.THETA_V * (P.BASE_VOL - this.vol) * dt + P.VOL_OF_VOL * Math.sqrt(dt) * this.randomNormal();
+    if (Math.random() < P.SPIKE_PROB * dt) this.vol *= 2.4;
+    this.vol = Math.max(P.MIN_VOL, Math.min(P.MAX_VOL, this.vol));
 
-    let newPrice = this.price * (1 + change);
+    // momentum / trend runs
+    this.mom += -P.THETA_M * this.mom * dt + P.SIGMA_M * Math.sqrt(dt) * this.randomNormal();
+    if (Math.random() < P.REGIME_PROB * dt) this.mom += (Math.random() - 0.5) * P.REGIME_KICK;
+    this.mom = Math.max(-P.MOM_MAX, Math.min(P.MOM_MAX, this.mom));
 
-    const maxMove = 0.08;
-    if (Math.abs(change) > maxMove) {
-      newPrice = this.price * (1 + Math.sign(change) * maxMove);
-    }
+    // loose pull toward ref + momentum + clustered noise
+    let dx = (-P.THETA_X * this.x + this.mom) * dt + this.vol * Math.sqrt(dt) * this.randomNormal();
+    if (Math.random() < P.JUMP_PROB * dt) dx += (Math.random() - 0.5) * P.JUMP_SIZE;
 
-    newPrice = Math.max(newPrice, 0.01);
-    this.mean = this.mean * (1 - 0.00005 * dt) + newPrice * 0.00005 * dt;
-
-    this.price = newPrice;
+    this.x = Math.max(Math.log(P.LO), Math.min(Math.log(P.HI), this.x + dx));
+    this.price = this.ref * Math.exp(this.x);
     return this.price;
   }
 
@@ -202,29 +240,42 @@ function LiveCandleChart({
     if (candlesRef.current.length === 0) {
       const now = Date.now();
       const durMs = candleMs(optsRef.current.timeframe);
-      let seed = value || 1000;
-      const tempSim = new PriceSimulator(seed);
+      const start = value || 1000;
+      const tempSim = new PriceSimulator(start);
+      let seed = start;
 
       for (let i = 0; i < MAX_CANDLES; i++) {
         const open = seed;
         let close = seed;
         let high = seed;
         let low = seed;
-        for (let t = 0; t < 40; t++) {
-          close = tempSim.nextPrice();
+        // fixed-dt stepping so synchronous seeding actually moves
+        for (let t = 0; t < 20; t++) {
+          close = tempSim.nextPrice(start, 0.8);
           high = Math.max(high, close);
           low = Math.min(low, close);
         }
-        const range = Math.abs(close - open) / Math.max(open, 0.01);
-        const volume = (0.6 + Math.random() * 0.8) * (1 + range * 25);
+        const rng = Math.abs(close - open) / Math.max(open, 0.01);
+        const volume = (0.6 + Math.random() * 0.8) * (1 + rng * 25);
         const time = now - (MAX_CANDLES - i) * durMs;
         candlesRef.current.push({ open, high, low, close, volume, time });
         seed = close;
       }
 
-      currentRef.current = { open: value, high: value, low: value, close: value, volume: 0, time: now };
-      peakPriceRef.current = value;
-      lastSeenPriceRef.current = value;
+      // rescale history so its last close lands exactly on the live start price,
+      // giving a seamless hand-off into the live candle (no opening gap).
+      const lastClose = candlesRef.current[candlesRef.current.length - 1].close;
+      const scale = lastClose > 0 ? start / lastClose : 1;
+      for (const c of candlesRef.current) {
+        c.open *= scale;
+        c.high *= scale;
+        c.low *= scale;
+        c.close *= scale;
+      }
+
+      currentRef.current = { open: start, high: start, low: start, close: start, volume: 0, time: now };
+      peakPriceRef.current = start;
+      lastSeenPriceRef.current = start;
     }
 
     // ---- crisp DPR sizing ----
@@ -704,6 +755,7 @@ export default function PortfolioPage() {
   const frameRef = useRef<number | null>(null);
   const loopInstanceIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
+  const maxDrawdownRef = useRef(0);
 
   // Real-time DOM references
   const domBalanceRef = useRef<HTMLHeadingElement | null>(null);
@@ -823,7 +875,7 @@ export default function PortfolioPage() {
     if (!earning || earning.status !== "active") {
       loopInstanceIdRef.current = null;
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      sim.price = realTotal;
+      sim.reset(realTotal);
       const t = setTimeout(() => {
         if (domBalanceRef.current) {
           domBalanceRef.current.innerText = formatUSD(realTotal);
@@ -847,7 +899,6 @@ export default function PortfolioPage() {
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
     const TICK_MS = 800;   // how often a new price prints (consumed by card + chart)
-    const BAND = 0.08;     // keep the wander within ±8% of the real total
 
     let previous = sim.price || realTotal;
     let maxValue = previous;
@@ -864,16 +915,17 @@ export default function PortfolioPage() {
       if (ts - lastTick >= TICK_MS) {
         lastTick = ts;
 
-        const raw = sim.nextPrice();
-        const anchored = raw + (realTotal - raw) * 0.03;
-        const lo = realTotal * (1 - BAND);
-        const hi = realTotal * (1 + BAND);
-        const price = Math.min(Math.max(anchored, lo), hi);
-        sim.price = price; // single source of truth; the chart reads this
+        // MT5-like engine handles trend, volatility and loose reversion toward
+        // realTotal internally. The chart reads this same simulator.price, so
+        // the card and the live chart stay perfectly in sync.
+        const price = sim.nextPrice(realTotal);
 
         if (price > maxValue) maxValue = price;
         const drawdown = maxValue > 0 ? (maxValue - price) / maxValue : 0;
-        if (drawdown > maxDrawdown) setMaxDrawdown(drawdown);
+        if (drawdown > maxDrawdownRef.current) {
+          maxDrawdownRef.current = drawdown;
+          setMaxDrawdown(drawdown);
+        }
 
         const changeAmount = price - previous;
         const changePercent = previous > 0 ? (changeAmount / previous) * 100 : 0;
@@ -907,7 +959,7 @@ export default function PortfolioPage() {
       loopInstanceIdRef.current = null;
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
-  }, [earning, realTotal, loading, maxDrawdown]);
+  }, [earning, realTotal, loading]);
 
   const roi = earning && earning.depositAmount > 0
     ? (earning.earnedSoFar / earning.depositAmount) * 100
@@ -1074,10 +1126,10 @@ export default function PortfolioPage() {
         </div>
         <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
           <p className="text-gray-500 text-xs uppercase">Max Drawdown</p>
-          <h3 className={`text-xl font-bold mt-2 ${maxDrawdown < 0.05 ? "text-green-400" : "text-yellow-400"}`}>
+          <h3 className={`text-xl font-bold mt-2 ${maxDrawdown < 0.05 ? "text-green-400" : maxDrawdown < 0.15 ? "text-yellow-400" : "text-red-400"}`}>
             {(maxDrawdown * 100).toFixed(2)}%
           </h3>
-          <p className="text-gray-400 text-xs mt-1">{maxDrawdown < 0.05 ? "Low Risk" : "Medium Risk"}</p>
+          <p className="text-gray-400 text-xs mt-1">{maxDrawdown < 0.05 ? "Low Risk" : maxDrawdown < 0.15 ? "Medium Risk" : "High Risk"}</p>
         </div>
       </div>
 
