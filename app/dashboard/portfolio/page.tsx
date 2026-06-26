@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Wallet, TrendingUp, Lock } from "lucide-react";
+import { ArrowLeft, Wallet, TrendingUp, Lock, TrendingDown, DollarSign } from "lucide-react";
 
 /* ---------- types ---------- */
 interface Earning {
@@ -37,28 +37,112 @@ const formatUSD = (n: number) =>
   }).format(Number.isFinite(n) ? n : 0);
 
 /* =============================================================
-   LIVE CANDLESTICK CHART
-   Simulated price motion anchored to `value`. Pauses when the
-   tab is hidden to save battery. Not real market data.
+   REALISTIC PRICE SIMULATOR - LIKE MT5
+   Uses geometric Brownian motion with volatility, trend, and mean reversion
+   ============================================================= */
+class PriceSimulator {
+  private price: number;
+  private trend: number;
+  private volatility: number;
+  private mean: number;
+  private trendStrength: number;
+  private meanReversion: number;
+  private lastUpdate: number;
+
+  constructor(initialPrice: number) {
+    this.price = initialPrice;
+    this.trend = 0;
+    this.volatility = 0.002; // 0.2% base volatility
+    this.mean = initialPrice;
+    this.trendStrength = 0.0001;
+    this.meanReversion = 0.01;
+    this.lastUpdate = Date.now();
+  }
+
+  // Generate realistic price with trends, volatility spikes, and mean reversion
+  nextPrice(): number {
+    const now = Date.now();
+    const dt = Math.min((now - this.lastUpdate) / 1000, 1);
+    this.lastUpdate = now;
+
+    // Randomly shift trend every 10-30 seconds
+    if (Math.random() < 0.01 * dt) {
+      this.trend = (Math.random() - 0.5) * 0.0008;
+      this.mean = this.price * (1 + (Math.random() - 0.5) * 0.005);
+    }
+
+    // Volatility spikes (market events)
+    let vol = this.volatility;
+    if (Math.random() < 0.002 * dt) {
+      vol = this.volatility * (2 + Math.random() * 3); // 2-5x spike
+    }
+
+    // Geometric Brownian Motion with mean reversion
+    const drift = this.trend + this.meanReversion * (this.mean - this.price) / this.price;
+    const noise = vol * Math.sqrt(dt) * this.randomNormal();
+    const change = drift * dt + noise;
+    
+    // Apply with safety bounds
+    let newPrice = this.price * (1 + change);
+    
+    // Prevent extreme moves (>15% in one tick)
+    const maxMove = 0.15;
+    if (Math.abs(change) > maxMove) {
+      newPrice = this.price * (1 + Math.sign(change) * maxMove);
+    }
+    
+    // Keep price positive
+    newPrice = Math.max(newPrice, 0.01);
+    
+    // Update mean gradually
+    this.mean = this.mean * (1 - 0.0001 * dt) + newPrice * 0.0001 * dt;
+    
+    this.price = newPrice;
+    return this.price;
+  }
+
+  // Box-Muller transform for normal distribution
+  private randomNormal(): number {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  }
+
+  // Update target price for chart
+  setTarget(target: number) {
+    this.mean = target;
+  }
+}
+
+/* =============================================================
+   REALISTIC CANDLESTICK CHART
    ============================================================= */
 function LiveCandleChart({
   value,
   active,
+  depositAmount,
 }: {
   value: number;
   active: boolean;
+  depositAmount: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const valueRef = useRef(value);
+  const simulatorRef = useRef<PriceSimulator | null>(null);
   const candlesRef = useRef<Candle[]>([]);
   const currentRef = useRef<Candle | null>(null);
-  const priceRef = useRef(value || 1000);
+  const priceHistoryRef = useRef<number[]>([]);
   const tickCountRef = useRef(0);
   const lastTickRef = useRef(0);
   const rafRef = useRef<number | null>(null);
+  const maxDrawdownRef = useRef(0);
+  const peakPriceRef = useRef(value);
 
+  // Initialize simulator
   useEffect(() => {
-    valueRef.current = value;
+    if (!simulatorRef.current) {
+      simulatorRef.current = new PriceSimulator(value);
+    }
   }, [value]);
 
   useEffect(() => {
@@ -67,24 +151,35 @@ function LiveCandleChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const TICK_MS = 1000;
-const TICKS_PER_CANDLE = 60;
-    const MAX_CANDLES = 46;
+    const TICK_MS = 500; // Faster ticks for more realistic movement
+    const TICKS_PER_CANDLE = 30; // 15 seconds per candle
+    const MAX_CANDLES = 80;
 
+    // Initialize with realistic price history
     if (candlesRef.current.length === 0) {
-      let seed = valueRef.current || 1000;
-      const seeded: Candle[] = [];
+      let seed = value || 1000;
+      const simulator = new PriceSimulator(seed);
+      
+      // Generate initial candles with realistic volatility
       for (let i = 0; i < MAX_CANDLES; i++) {
         const open = seed;
-        const close = seed * (1 + (Math.random() - 0.45) * 0.01);
-        const high = Math.max(open, close) * (1 + Math.random() * 0.004);
-        const low = Math.min(open, close) * (1 - Math.random() * 0.004);
-        seeded.push({ open, high, low, close });
+        const close = simulator.nextPrice();
+        const high = Math.max(open, close) * (1 + Math.random() * 0.002);
+        const low = Math.min(open, close) * (1 - Math.random() * 0.002);
+        candlesRef.current.push({ open, high, low, close });
         seed = close;
       }
-      candlesRef.current = seeded;
-      priceRef.current = seed;
-      currentRef.current = { open: seed, high: seed, low: seed, close: seed };
+      
+      const lastPrice = candlesRef.current[candlesRef.current.length - 1].close;
+      simulatorRef.current = new PriceSimulator(lastPrice);
+      currentRef.current = { 
+        open: lastPrice, 
+        high: lastPrice, 
+        low: lastPrice, 
+        close: lastPrice 
+      };
+      priceHistoryRef.current = candlesRef.current.map(c => c.close);
+      peakPriceRef.current = lastPrice;
     }
 
     const resize = () => {
@@ -113,30 +208,32 @@ const TICKS_PER_CANDLE = 60;
         if (c.low < min) min = c.low;
         if (c.high > max) max = c.high;
       }
-      const padV = (max - min) * 0.12 || max * 0.01 || 1;
+      const padV = (max - min) * 0.15 || max * 0.01 || 1;
       min -= padV;
       max += padV;
       const range = max - min || 1;
 
-      const padRight = 62;
+      const padRight = 72;
       const plotW = W - padRight;
       const slot = plotW / all.length;
-      const bodyW = Math.max(2, slot * 0.6);
+      const bodyW = Math.max(2, slot * 0.5);
       const y = (p: number) => H - ((p - min) / range) * H;
 
+      // Grid
       ctx.lineWidth = 1;
-      ctx.font = "10px Arial";
-      for (let i = 0; i <= 4; i++) {
-        const gy = (H / 4) * i;
-        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+      ctx.font = "9px Arial";
+      for (let i = 0; i <= 5; i++) {
+        const gy = (H / 5) * i;
+        ctx.strokeStyle = "rgba(255,255,255,0.04)";
         ctx.beginPath();
         ctx.moveTo(0, gy);
         ctx.lineTo(plotW, gy);
         ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.28)";
-        ctx.fillText((max - (range / 4) * i).toFixed(2), plotW + 6, gy + 3);
+        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.fillText((max - (range / 5) * i).toFixed(2), plotW + 6, gy + 3);
       }
 
+      // Candles
       all.forEach((c, i) => {
         const cx = slot * i + slot / 2;
         const up = c.close >= c.open;
@@ -144,6 +241,7 @@ const TICKS_PER_CANDLE = 60;
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
 
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(cx, y(c.high));
         ctx.lineTo(cx, y(c.low));
@@ -154,26 +252,29 @@ const TICKS_PER_CANDLE = 60;
         ctx.fillRect(cx - bodyW / 2, top, bodyW, h);
       });
 
+      // Current price line
       const last = all[all.length - 1];
       const ly = y(last.close);
       const up = last.close >= last.open;
-      ctx.strokeStyle = up ? "rgba(34,197,94,0.5)" : "rgba(239,68,68,0.5)";
-      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = up ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)";
+      ctx.setLineDash([3, 3]);
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, ly);
       ctx.lineTo(plotW, ly);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.fillStyle = up ? "#22c55e" : "#ef4444";
-      ctx.fillRect(plotW, ly - 9, padRight, 18);
+      // Current price label
+      const priceColor = last.close >= peakPriceRef.current * 0.9 ? "#22c55e" : "#ef4444";
+      ctx.fillStyle = priceColor;
+      ctx.fillRect(plotW, ly - 10, padRight, 20);
       ctx.fillStyle = "#0B0F19";
-      ctx.font = "bold 10px Arial";
+      ctx.font = "bold 9px Arial";
       ctx.fillText(last.close.toFixed(2), plotW + 6, ly + 3);
     };
 
     const loop = (ts: number) => {
-      // pause work while the tab is hidden (saves battery on mobile)
       if (document.hidden) {
         lastTickRef.current = ts;
         rafRef.current = requestAnimationFrame(loop);
@@ -185,40 +286,47 @@ const TICKS_PER_CANDLE = 60;
       if (active && ts - lastTickRef.current >= TICK_MS) {
         lastTickRef.current = ts;
 
-        const target = valueRef.current || priceRef.current;
-        const drift = (target - priceRef.current) * 0.06;
-        const trendBias =
-  Math.random() > 0.5
-    ? 0.0015
-    : -0.0015;
+        const simulator = simulatorRef.current;
+        if (simulator) {
+          // Generate realistic price
+          const newPrice = simulator.nextPrice();
+          
+          // Update peak for drawdown tracking
+          if (newPrice > peakPriceRef.current) {
+            peakPriceRef.current = newPrice;
+          }
+          
+          const drawdown = (peakPriceRef.current - newPrice) / peakPriceRef.current;
+          if (drawdown > maxDrawdownRef.current) {
+            maxDrawdownRef.current = drawdown;
+          }
 
-const noise =
-  priceRef.current *
-  (
-    trendBias +
-    (Math.random() - 0.5) * 0.002
-  );
-        priceRef.current = Math.max(0.01, priceRef.current + drift + noise);
+          priceHistoryRef.current.push(newPrice);
+          if (priceHistoryRef.current.length > 200) {
+            priceHistoryRef.current.shift();
+          }
 
-        const cur = currentRef.current;
-        if (cur) {
-          cur.close = priceRef.current;
-          cur.high = Math.max(cur.high, priceRef.current);
-          cur.low = Math.min(cur.low, priceRef.current);
-        }
+          const cur = currentRef.current;
+          if (cur) {
+            cur.close = newPrice;
+            cur.high = Math.max(cur.high, newPrice);
+            cur.low = Math.min(cur.low, newPrice);
+          }
 
-        tickCountRef.current++;
-        if (tickCountRef.current >= TICKS_PER_CANDLE && cur) {
-          candlesRef.current.push({ ...cur });
-          if (candlesRef.current.length > MAX_CANDLES)
-            candlesRef.current.shift();
-          currentRef.current = {
-            open: priceRef.current,
-            high: priceRef.current,
-            low: priceRef.current,
-            close: priceRef.current,
-          };
-          tickCountRef.current = 0;
+          tickCountRef.current++;
+          if (tickCountRef.current >= TICKS_PER_CANDLE && cur) {
+            candlesRef.current.push({ ...cur });
+            if (candlesRef.current.length > MAX_CANDLES) {
+              candlesRef.current.shift();
+            }
+            currentRef.current = {
+              open: newPrice,
+              high: newPrice,
+              low: newPrice,
+              close: newPrice,
+            };
+            tickCountRef.current = 0;
+          }
         }
       }
 
@@ -232,34 +340,45 @@ const noise =
       window.removeEventListener("resize", resize);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [active]);
+  }, [active, value]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: "100%", height: "190px", display: "block" }}
-    />
+    <div className="w-full">
+      <canvas
+        ref={canvasRef}
+        style={{ width: "100%", height: "200px", display: "block" }}
+      />
+    </div>
   );
 }
 
+/* =============================================================
+   MAIN PORTFOLIO PAGE
+   ============================================================= */
 export default function PortfolioPage() {
   const [userBalance, setUserBalance] = useState(0);
   const [earning, setEarning] = useState<Earning | null>(null);
 
   const [displayValue, setDisplayValue] = useState(0);
   const [isUp, setIsUp] = useState(true);
+  const [priceChange, setPriceChange] = useState(0);
+  const [priceChangePercent, setPriceChangePercent] = useState(0);
 
   const [ticker, setTicker] = useState<string[]>([]);
   const [countdown, setCountdown] = useState("");
-const [lockedBalance, setLockedBalance] = useState(0);
+  const [lockedBalance, setLockedBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [equityHistory, setEquityHistory] = useState<number[]>([]);
+  const [maxDrawdown, setMaxDrawdown] = useState(0);
 
   const router = useRouter();
   const frameRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
   const realTotalRef = useRef(0);
+  const previousValueRef = useRef(0);
+  const simulatorRef = useRef<PriceSimulator | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -282,8 +401,10 @@ const [lockedBalance, setLockedBalance] = useState(0);
       if (res.status === 401) return handleUnauthorized();
       if (!res.ok) throw new Error(`user/me ${res.status}`);
       const data: UserMeResponse = await res.json();
-      if (mountedRef.current) setUserBalance(data.user?.balance ?? 0);
-setLockedBalance(data.user?.lockedBalance ?? 0);
+      if (mountedRef.current) {
+        setUserBalance(data.user?.balance ?? 0);
+        setLockedBalance(data.user?.lockedBalance ?? 0);
+      }
     } catch (err) {
       console.error("Failed to load user:", err);
       if (mountedRef.current) setError("Could not load your balance.");
@@ -299,7 +420,9 @@ setLockedBalance(data.user?.lockedBalance ?? 0);
       if (res.status === 401) return handleUnauthorized();
       if (!res.ok) throw new Error(`earn/status ${res.status}`);
       const data: EarnStatusResponse = await res.json();
-      if (mountedRef.current) setEarning(data.earning ?? null);
+      if (mountedRef.current) {
+        setEarning(data.earning ?? null);
+      }
     } catch (err) {
       console.error("Failed to load earning:", err);
     }
@@ -313,12 +436,11 @@ setLockedBalance(data.user?.lockedBalance ?? 0);
     })();
   }, [refreshUser, refreshEarning]);
 
-  // poll earning status
-  // Change from 5000ms to 30000ms (30 seconds)
-useEffect(() => {
-  const interval = setInterval(refreshEarning, 30000);
-  return () => clearInterval(interval);
-}, [refreshEarning]);
+  // poll earning status (30 seconds)
+  useEffect(() => {
+    const interval = setInterval(refreshEarning, 30000);
+    return () => clearInterval(interval);
+  }, [refreshEarning]);
 
   /* ---------- countdown ---------- */
   useEffect(() => {
@@ -337,75 +459,137 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [earning]);
 
-  /* ---------- trade ticker ---------- */
+  /* ---------- trade ticker with realistic market events ---------- */
   useEffect(() => {
     if (!earning) return;
-    const coins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
+    const symbols = ["BTC/USD", "ETH/USD", "SOL/USD", "XAU/USD", "SPX500"];
     const interval = setInterval(() => {
-      const isBuy = Math.random() > 0.4;
-      const amount = (Math.random() * 500 + 20).toFixed(2);
-      const coin = coins[Math.floor(Math.random() * coins.length)];
-      const text = `${isBuy ? "🟢 Buy" : "🔴 Sell"} ${coin} ${
-        isBuy ? "+" : "-"
-      }$${amount}`;
-      setTicker((prev) => [...prev.slice(-10), text]);
-    }, 2000);
+      const isBuy = Math.random() > 0.45;
+      const amount = (Math.random() * 800 + 50).toFixed(2);
+      const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+      const price = (Math.random() * 100 + 50).toFixed(2);
+      const action = isBuy ? "BUY" : "SELL";
+      const change = isBuy ? "+" : "-";
+      const text = `${action} ${symbol} ${change}$${amount} @ ${price}`;
+      setTicker((prev) => [...prev.slice(-15), text]);
+    }, 1500);
     return () => clearInterval(interval);
   }, [earning]);
 
-  /* ---------- derived ---------- */
-  const realTotal =
-    earning?.status === "active"
-      ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
-      : userBalance;
+  /* ---------- derived values ---------- */
+  const realTotal = earning?.status === "active"
+    ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
+    : userBalance;
 
   useEffect(() => {
     realTotalRef.current = realTotal;
+    previousValueRef.current = realTotal;
   }, [realTotal]);
 
-  /* ---------- balance easing (re-anchored to realTotal) ---------- */
-  useEffect(() => {
-    if (!earning) return;
-    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+  /* ---------- REALISTIC BALANCE SIMULATION ---------- */
+  /* ---------- REALISTIC BALANCE SIMULATION ---------- */
+useEffect(() => {
+  if (!earning || earning.status !== "active") {
+    setDisplayValue(realTotal);
+    return;
+  }
 
-    let current = realTotalRef.current;
-    let target = realTotalRef.current;
+  if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
-    const animate = () => {
-      if (document.hidden) {
-        frameRef.current = requestAnimationFrame(animate);
-        return;
-      }
-      // jitter AROUND the real value so the display can't drift away from it
-      if (Math.random() < 0.05) {
-        const jitter = Math.random() * 0.02 - 0.01; // ±1%
-        target = realTotalRef.current * (1 + jitter);
-      }
-      const next = current + (target - current) * 0.08;
-      if (mountedRef.current) {
-        setDisplayValue(next);
-        setIsUp(next >= current);
-      }
-      current = next;
+  // Initialize simulator with deposit amount
+  if (!simulatorRef.current) {
+    simulatorRef.current = new PriceSimulator(realTotal);
+  }
+
+  let current = realTotal;
+  const history: number[] = [];
+  let maxValue = realTotal;
+
+  const animate = () => {
+    if (document.hidden) {
       frameRef.current = requestAnimationFrame(animate);
-    };
+      return;
+    }
+
+    const simulator = simulatorRef.current;
+    if (simulator) {
+      // Generate realistic price movement
+      const newPrice = simulator.nextPrice();
+      
+      // Scale movement to portfolio value
+      const volatility = 0.002; // 0.2% per tick
+      const movement = (newPrice / 1000) * volatility;
+      
+      // Add market trend with occasional large moves
+      let trend = 0;
+      if (Math.random() < 0.001) {
+        trend = (Math.random() - 0.5) * 0.01; // 1% trend shift
+      }
+      
+      // Mean reversion to target (using realTotal directly)
+      const reversion = (realTotal - current) * 0.0005;
+      
+      // Combine movements
+      const change = movement + trend + reversion;
+      const nextValue = Math.max(current * (1 + change), 0.01);
+      
+      // Ensure we don't deviate too far from target
+      const maxDeviation = 0.15; // 15% max deviation
+      const deviation = (nextValue - realTotal) / realTotal;
+      let finalValue = nextValue;
+      if (deviation > maxDeviation) {
+        finalValue = realTotal * (1 + maxDeviation);
+      } else if (deviation < -maxDeviation * 0.5) {
+        // Allow bigger drops (50% of max deviation)
+        finalValue = realTotal * (1 - maxDeviation * 0.5);
+      }
+      
+      current = finalValue;
+      
+      // Track max value for drawdown
+      if (current > maxValue) {
+        maxValue = current;
+      }
+      const drawdown = (maxValue - current) / maxValue;
+      if (drawdown > maxDrawdown) {
+        setMaxDrawdown(drawdown);
+      }
+      
+      // Store history for performance tracking
+      history.push(current);
+      if (history.length > 300) history.shift();
+      setEquityHistory(history);
+      
+      // Update display
+      if (mountedRef.current) {
+        setDisplayValue(current);
+        const changeAmount = current - previousValueRef.current;
+        setPriceChange(changeAmount);
+        setPriceChangePercent(previousValueRef.current > 0 
+          ? (changeAmount / previousValueRef.current) * 100 
+          : 0);
+        setIsUp(current >= previousValueRef.current);
+        previousValueRef.current = current;
+      }
+    }
 
     frameRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, [earning]);
+  };
 
-  const locked = lockedBalance;
+  frameRef.current = requestAnimationFrame(animate);
 
-  const roi =
-    earning && earning.depositAmount > 0
-      ? (earning.earnedSoFar / earning.depositAmount) * 100
-      : 0;
+  return () => {
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+  };
+}, [earning, realTotal]);
 
-  /* ---------- start earning (hardened) ---------- */
+  const roi = earning && earning.depositAmount > 0
+    ? (earning.earnedSoFar / earning.depositAmount) * 100
+    : 0;
+
+  /* ---------- start earning ---------- */
   const startEarning = async () => {
-    if (starting) return; // guard against double-tap
+    if (starting) return;
     setStarting(true);
     setError(null);
     try {
@@ -416,7 +600,7 @@ useEffect(() => {
       });
       if (res.status === 401) return handleUnauthorized();
       if (!res.ok) throw new Error(`earn/start ${res.status}`);
-      await refreshEarning(); // reflect the new state immediately
+      await refreshEarning();
     } catch (err) {
       console.error("startEarning failed:", err);
       if (mountedRef.current)
@@ -442,7 +626,7 @@ useEffect(() => {
     <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
       <button
         onClick={() => router.back()}
-        className="mt-4 mb-4 flex items-center gap-2 text-gray-400"
+        className="mt-4 mb-4 flex items-center gap-2 text-gray-400 hover:text-white transition"
       >
         <ArrowLeft size={16} /> Back
       </button>
@@ -457,197 +641,123 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="overflow-hidden mb-4 relative">
-        <div className="flex gap-6 animate-scroll whitespace-nowrap text-sm">
+      {/* Ticker */}
+      <div className="overflow-hidden mb-4 relative bg-[#131A2A] rounded-xl py-2 px-4 border border-gray-800">
+        <div className="flex gap-8 animate-scroll whitespace-nowrap text-sm">
           {ticker.map((t, i) => (
-            <span key={i}>{t}</span>
+            <span key={i} className="text-gray-300 font-mono">
+              {t}
+            </span>
           ))}
         </div>
       </div>
 
+      {/* Main Balance Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#131A2A] via-[#1A2235] to-[#101827] p-6 rounded-3xl mb-4 border border-yellow-500/20 shadow-[0_0_40px_rgba(250,204,21,0.08)]">
+        <div className="absolute -top-20 -right-20 w-48 h-48 bg-yellow-400/10 blur-3xl rounded-full" />
 
-{/* Glow */}
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-yellow-400">
+              Total Net Worth
+            </p>
+            <p className="text-gray-500 text-xs mt-1">
+              Portfolio Value
+            </p>
+          </div>
+          <div className={`px-3 py-1 rounded-full border ${
+            isUp ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"
+          }`}>
+            <span className={`text-xs font-semibold ${isUp ? "text-green-400" : "text-red-400"}`}>
+              {isUp ? "+" : ""}{priceChangePercent.toFixed(2)}%
+            </span>
+          </div>
+        </div>
 
-  <div className="absolute -top-20 -right-20 w-48 h-48 bg-yellow-400/10 blur-3xl rounded-full" />
+        <h2 className={`text-4xl font-bold transition-all duration-300 ${
+          earning ? (isUp ? "text-green-400" : "text-red-400") : "text-white"
+        }`}>
+          {formatUSD(earning ? displayValue : userBalance)}
+        </h2>
 
-{/* Header */}
+        <div className="flex items-center gap-4 mt-2">
+          <div className="flex items-center gap-2">
+            <span className="text-green-400 font-semibold">
+              +{formatUSD(earning?.earnedSoFar ?? 0)}
+            </span>
+            <span className="text-gray-500 text-sm">Total Profit</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${isUp ? "text-green-400" : "text-red-400"}`}>
+              {isUp ? "▲" : "▼"} ${Math.abs(priceChange).toFixed(2)}
+            </span>
+          </div>
+        </div>
 
-  <div className="flex justify-between items-start mb-4">
-    <div>
-      <p className="text-xs uppercase tracking-[0.25em] text-yellow-400">
-        Total Net Worth
-      </p>
+        <div className="grid grid-cols-3 gap-3 mt-6">
+          <div className="bg-white/5 rounded-xl p-3">
+            <p className="text-gray-500 text-xs">Available</p>
+            <p className="font-semibold">{formatUSD(userBalance)}</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-3">
+            <p className="text-gray-500 text-xs">Locked</p>
+            <p className="font-semibold text-yellow-400">{formatUSD(lockedBalance)}</p>
+          </div>
+          <div className="bg-white/5 rounded-xl p-3">
+            <p className="text-gray-500 text-xs">ROI</p>
+            <p className={`font-semibold ${roi >= 0 ? "text-green-400" : "text-red-400"}`}>
+              {roi.toFixed(2)}%
+            </p>
+          </div>
+        </div>
 
+        {earning?.status === "active" && (
+          <div className="mt-5 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3">
+            <p className="text-yellow-400 text-xs uppercase tracking-wide">
+              Active Trading Session
+            </p>
+            <p className="text-white text-sm mt-1">Ends in {countdown}</p>
+            <div className="mt-2 bg-[#0B0F19] rounded-full h-1.5 overflow-hidden">
+              <div 
+                className="h-full bg-yellow-400 transition-all duration-500"
+                style={{ width: `${Math.min(earning.progress || 0, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
-  <p className="text-gray-500 text-xs mt-1">
-    Portfolio Value
-  </p>
-</div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+          <p className="text-gray-500 text-xs uppercase">Portfolio Value</p>
+          <h3 className="text-xl font-bold mt-2">
+            {formatUSD(userBalance + lockedBalance + (earning?.earnedSoFar || 0))}
+          </h3>
+          <p className="text-green-400 text-xs mt-1">+{roi.toFixed(2)}% Growth</p>
+        </div>
+        <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+          <p className="text-gray-500 text-xs uppercase">Active Capital</p>
+          <h3 className="text-xl font-bold mt-2">{formatUSD(lockedBalance)}</h3>
+          <p className="text-yellow-400 text-xs mt-1">Currently Trading</p>
+        </div>
+        <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+          <p className="text-gray-500 text-xs uppercase">Total Profit</p>
+          <h3 className="text-xl font-bold mt-2 text-green-400">
+            +{formatUSD(earning?.earnedSoFar || 0)}
+          </h3>
+          <p className="text-gray-400 text-xs mt-1">Since Activation</p>
+        </div>
+        <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
+          <p className="text-gray-500 text-xs uppercase">Max Drawdown</p>
+          <h3 className={`text-xl font-bold mt-2 ${maxDrawdown < 0.05 ? "text-green-400" : "text-yellow-400"}`}>
+            {(maxDrawdown * 100).toFixed(2)}%
+          </h3>
+          <p className="text-gray-400 text-xs mt-1">{maxDrawdown < 0.05 ? "Low Risk" : "Medium Risk"}</p>
+        </div>
+      </div>
 
-<div className="bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full">
-  <span className="text-green-400 text-xs font-semibold">
-    +8.45%
-  </span>
-</div>
-
-
-  </div>
-
-{/* Balance */}
-
-  <h2
-    className={`text-4xl font-bold transition-all duration-500 ${
-      earning
-        ? isUp
-          ? "text-green-400"
-          : "text-red-400"
-        : "text-white"
-    }`}
-  >
-    {formatUSD(earning ? displayValue : userBalance)}
-  </h2>
-
-{/* Profit */}
-
-  <div className="flex items-center gap-2 mt-2">
-    <span className="text-green-400 font-semibold">
-      +{formatUSD(earning?.earnedSoFar ?? 0)}
-    </span>
-
-
-<span className="text-gray-500 text-sm">
-  Total Profit
-</span>
-
-
-  </div>
-
-{/* Footer */}
-
-  <div className="grid grid-cols-3 gap-3 mt-6">
-
-
-<div className="bg-white/5 rounded-xl p-3">
-  <p className="text-gray-500 text-xs">
-    Available
-  </p>
-
-  <p className="font-semibold">
-    {formatUSD(userBalance)}
-  </p>
-</div>
-
-<div className="bg-white/5 rounded-xl p-3">
-  <p className="text-gray-500 text-xs">
-    Locked
-  </p>
-
-  <p className="font-semibold text-yellow-400">
-    {formatUSD(locked)}
-  </p>
-</div>
-
-<div className="bg-white/5 rounded-xl p-3">
-  <p className="text-gray-500 text-xs">
-    ROI
-  </p>
-
-  <p className="font-semibold text-green-400">
-    {roi.toFixed(2)}%
-  </p>
-</div>
-
-
-  </div>
-
-{earning?.status === "active" && ( <div className="mt-5 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3"> <p className="text-yellow-400 text-xs uppercase tracking-wide">
-Active Trading Session </p>
-
-  <p className="text-white text-sm mt-1">
-    Ends in {countdown}
-  </p>
-</div>
-)}
-</div>
-
-
-<div className="grid grid-cols-2 gap-3 mb-5">
-
-  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
-    <p className="text-gray-500 text-xs uppercase">
-      Portfolio Value
-    </p>
-
-<h3 className="text-xl font-bold mt-2">
-  {formatUSD(
-    userBalance +
-    locked +
-    (earning?.earnedSoFar || 0)
-  )}
-</h3>
-
-<p className="text-green-400 text-xs mt-1">
-  +{roi.toFixed(2)}% Growth
-</p>
-
-
-  </div>
-
-  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
-    <p className="text-gray-500 text-xs uppercase">
-      Active Capital
-    </p>
-
-
-<h3 className="text-xl font-bold mt-2">
-  {formatUSD(locked)}
-</h3>
-
-<p className="text-yellow-400 text-xs mt-1">
-  Currently Trading
-</p>
-
-
-  </div>
-
-  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
-    <p className="text-gray-500 text-xs uppercase">
-      Total Profit
-    </p>
-
-
-<h3 className="text-xl font-bold mt-2 text-green-400">
-  +{formatUSD(earning?.earnedSoFar || 0)}
-</h3>
-
-<p className="text-gray-400 text-xs mt-1">
-  Since Activation
-</p>
-
-
-  </div>
-
-  <div className="bg-[#131A2A] border border-white/5 rounded-2xl p-4">
-    <p className="text-gray-500 text-xs uppercase">
-      Portfolio Health
-    </p>
-
-
-<h3 className="text-xl font-bold mt-2 text-green-400">
-  98 / 100
-</h3>
-
-<p className="text-green-400 text-xs mt-1">
-  Excellent
-</p>
-
-
-  </div>
-
-</div>
-
-
+      {/* Chart */}
       <div className="bg-[#131A2A] p-4 rounded-2xl mb-5 border border-gray-800">
         <div className="flex justify-between items-center mb-2">
           <p className="text-gray-400 text-sm flex items-center gap-1">
@@ -658,52 +768,36 @@ Active Trading Session </p>
           </span>
         </div>
         <div className="flex justify-between items-center mb-3">
-  <div>
-    <h3 className="font-semibold">
-      Market Performance
-    </h3>
-
-    <p className="text-xs text-gray-500">
-      Real-Time Trading Activity
-    </p>
-  </div>
-
-  <div className="flex gap-2">
-    
-  </div>
-</div>
-<div className="flex justify-between items-center mb-3">
-
-  <div>
-    <p className="text-gray-500 text-xs">
-      Current Portfolio Value
-    </p>
-
-    <h3 className="font-bold text-lg">
-      {formatUSD(
-        earning
-          ? displayValue
-          : userBalance
-      )}
-    </h3>
-  </div>
-
-  <div className="flex items-center gap-2">
-    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-
-    <span className="text-green-400 text-xs">
-      LIVE
-    </span>
-  </div>
-
-</div>
+          <div>
+            <h3 className="font-semibold">Market Performance</h3>
+            <p className="text-xs text-gray-500">Real-Time Trading Activity</p>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-1 rounded">
+              LIVE
+            </span>
+          </div>
+        </div>
+        <div className="flex justify-between items-center mb-3">
+          <div>
+            <p className="text-gray-500 text-xs">Current Portfolio Value</p>
+            <h3 className="font-bold text-lg">
+              {formatUSD(earning ? displayValue : userBalance)}
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-green-400 text-xs">LIVE</span>
+          </div>
+        </div>
         <LiveCandleChart
           value={earning ? displayValue : userBalance}
           active={earning?.status === "active"}
+          depositAmount={earning?.depositAmount || 0}
         />
-        
       </div>
 
+      {/* Earn Balance Section */}
       <div className="bg-[#131A2A] p-5 rounded-2xl">
         <div className="flex justify-between items-center">
           <p className="text-gray-400 text-sm">Earn Balance</p>
@@ -715,64 +809,42 @@ Active Trading Session </p>
         </h2>
 
         <p className="text-xs text-gray-400">ROI: {roi.toFixed(2)}%</p>
-<div className="mt-4 bg-[#131A2A] rounded-2xl p-4 border border-white/5">
 
-  <div className="flex justify-between items-center mb-3">
-    <h3 className="font-semibold">
-      AI Portfolio Insight
-    </h3>
+        <div className="mt-4 bg-[#0B0F19] rounded-2xl p-4 border border-white/5">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold">AI Portfolio Insight</h3>
+            <span className="text-green-400 text-xs">LIVE</span>
+          </div>
 
+          <div className="bg-[#131A2A] p-4 rounded-2xl mt-4">
+            <div className="flex justify-between mb-2">
+              <span>Wealth Goal</span>
+              <span>$50,000</span>
+            </div>
+            <div className="h-3 bg-[#0B0F19] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-yellow-400 to-green-400 transition-all duration-500"
+                style={{
+                  width: `${Math.min(
+                    ((userBalance + lockedBalance + (earning?.earnedSoFar || 0)) / 50000) * 100,
+                    100
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
 
-<span className="text-green-400 text-xs">
-  LIVE
-</span>
-
-<div className="bg-[#131A2A] p-4 rounded-2xl mt-4">
-
-  <div className="flex justify-between mb-2">
-    <span>Wealth Goal</span>
-
-    <span>$50,000</span>
-  </div>
-
-  <div className="h-3 bg-[#0B0F19] rounded-full overflow-hidden">
-
-    <div
-      className="h-full bg-yellow-400"
-      style={{
-        width: `${Math.min(
-          (
-  (
-    userBalance +
-    locked +
-    (earning?.earnedSoFar || 0)
-  ) / 50000
-) * 100
-          
-        )}%`,
-      }}
-    />
-
-  </div>
-
-</div>
-  </div>
-
-  <p className="text-sm text-gray-300 leading-relaxed">
-    Your portfolio has generated a positive return of
-    {` ${roi.toFixed(2)}% `}
-    and remains within an optimal risk range.
-    Based on current performance, projected growth
-    remains strong for the active trading cycle.
-  </p>
-
-</div>
+          <p className="text-sm text-gray-300 leading-relaxed mt-4">
+            Your portfolio has generated a positive return of {roi.toFixed(2)}% and remains within an optimal risk range.
+            Based on current performance, projected growth remains strong for the active trading cycle.
+          </p>
+        </div>
 
         {!earning && userBalance > 0 && (
           <button
             onClick={startEarning}
             disabled={starting}
-            className="mt-4 w-full bg-yellow-400 text-black py-2 rounded-xl font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+            className="mt-4 w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-black py-3 rounded-xl font-semibold hover:from-yellow-500 hover:to-yellow-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {starting ? "Starting..." : "Start Earning"}
           </button>
@@ -781,7 +853,7 @@ Active Trading Session </p>
 
       <style jsx>{`
         .animate-scroll {
-          animation: scroll 20s linear infinite;
+          animation: scroll 25s linear infinite;
         }
         @keyframes scroll {
           from {
