@@ -25,7 +25,17 @@ interface EarnStatusResponse {
   earning?: Earning | null;
 }
 
-type Candle = { open: number; high: number; low: number; close: number };
+type Candle = {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  time: number;
+};
+
+type ChartType = "candles" | "line" | "area";
+type Timeframe = "1m" | "5m" | "15m";
 
 /* ---------- helpers ---------- */
 const formatUSD = (n: number) =>
@@ -35,6 +45,42 @@ const formatUSD = (n: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(n) ? n : 0);
+
+const COL = {
+  up: "#22c55e",
+  down: "#ef4444",
+  ma7: "#38bdf8",
+  ma25: "#f59e0b",
+  grid: "rgba(255,255,255,0.045)",
+  axis: "rgba(255,255,255,0.32)",
+  cross: "rgba(255,255,255,0.18)",
+  bgCard: "#0B0F19",
+};
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function smaAt(view: Candle[], period: number, idx: number): number | null {
+  if (idx < period - 1) return null;
+  let s = 0;
+  for (let k = 0; k < period; k++) s += view[idx - k].close;
+  return s / period;
+}
 
 /* =============================================================
    REALISTIC PRICE SIMULATOR
@@ -100,7 +146,11 @@ class PriceSimulator {
 }
 
 /* =============================================================
-   REALISTIC CANDLESTICK CHART
+   SOPHISTICATED LIVE CHART
+   - candles / line / area
+   - volume, MA(7)/MA(25), crosshair + OHLC tooltip
+   - time + price axes, live pulse, 24h stats
+   - reads simulator.price ONLY (stays in sync with the card)
    ============================================================= */
 function LiveCandleChart({
   value,
@@ -118,6 +168,26 @@ function LiveCandleChart({
   const lastSeenPriceRef = useRef<number>(value);
   const rafRef = useRef<number | null>(null);
   const peakPriceRef = useRef(value);
+  const hoverRef = useRef<{ x: number; y: number } | null>(null);
+
+  // stats readouts (updated via DOM to avoid re-renders)
+  const hiRef = useRef<HTMLSpanElement | null>(null);
+  const loRef = useRef<HTMLSpanElement | null>(null);
+  const chgRef = useRef<HTMLSpanElement | null>(null);
+
+  const [chartType, setChartType] = useState<ChartType>("candles");
+  const [timeframe, setTimeframe] = useState<Timeframe>("1m");
+  const [showMA, setShowMA] = useState(true);
+  const [showVolume, setShowVolume] = useState(true);
+
+  // read live options inside the rAF loop without tearing it down on toggle
+  const optsRef = useRef({ chartType, timeframe, showMA, showVolume });
+  useEffect(() => {
+    optsRef.current = { chartType, timeframe, showMA, showVolume };
+  }, [chartType, timeframe, showMA, showVolume]);
+
+  const ticksPerCandle = (tf: Timeframe) => (tf === "1m" ? 8 : tf === "5m" ? 20 : 40);
+  const candleMs = (tf: Timeframe) => (tf === "1m" ? 60000 : tf === "5m" ? 300000 : 900000);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -125,10 +195,13 @@ function LiveCandleChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const TICKS_PER_CANDLE = 30;
-    const MAX_CANDLES = 60;
+    const MAX_CANDLES = 80;
+    const VISIBLE = 70;
 
+    // ---- seed history once ----
     if (candlesRef.current.length === 0) {
+      const now = Date.now();
+      const durMs = candleMs(optsRef.current.timeframe);
       let seed = value || 1000;
       const tempSim = new PriceSimulator(seed);
 
@@ -137,22 +210,24 @@ function LiveCandleChart({
         let close = seed;
         let high = seed;
         let low = seed;
-
-        for (let t = 0; t < 60; t++) {
+        for (let t = 0; t < 40; t++) {
           close = tempSim.nextPrice();
           high = Math.max(high, close);
           low = Math.min(low, close);
         }
-
-        candlesRef.current.push({ open, high, low, close });
+        const range = Math.abs(close - open) / Math.max(open, 0.01);
+        const volume = (0.6 + Math.random() * 0.8) * (1 + range * 25);
+        const time = now - (MAX_CANDLES - i) * durMs;
+        candlesRef.current.push({ open, high, low, close, volume, time });
         seed = close;
       }
 
-      currentRef.current = { open: value, high: value, low: value, close: value };
+      currentRef.current = { open: value, high: value, low: value, close: value, volume: 0, time: now };
       peakPriceRef.current = value;
       lastSeenPriceRef.current = value;
     }
 
+    // ---- crisp DPR sizing ----
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
@@ -163,68 +238,180 @@ function LiveCandleChart({
     resize();
     window.addEventListener("resize", resize);
 
+    // ---- draw ----
     const draw = () => {
+      const opts = optsRef.current;
       const rect = canvas.getBoundingClientRect();
       const W = rect.width;
       const H = rect.height;
       ctx.clearRect(0, 0, W, H);
 
       const cur = currentRef.current;
-      const all = cur ? [...candlesRef.current, cur] : candlesRef.current;
-      if (all.length === 0) return;
+      const allData = cur ? [...candlesRef.current, cur] : candlesRef.current.slice();
+      if (allData.length === 0) return;
 
+      const view = allData.slice(Math.max(0, allData.length - VISIBLE));
+
+      const padRight = 62;
+      const axisH = 16;
+      const volH = opts.showVolume ? Math.round(H * 0.18) : 0;
+      const priceTop = 6;
+      const priceBottom = H - axisH - volH;
+      const priceH = Math.max(20, priceBottom - priceTop);
+      const plotW = W - padRight;
+      const slot = plotW / view.length;
+      const bodyW = Math.max(1.5, slot * 0.62);
+
+      // price scale
       let min = Infinity;
       let max = -Infinity;
-      for (const c of all) {
+      let rawHi = -Infinity;
+      let rawLo = Infinity;
+      for (const c of view) {
         if (c.low < min) min = c.low;
         if (c.high > max) max = c.high;
+        if (c.high > rawHi) rawHi = c.high;
+        if (c.low < rawLo) rawLo = c.low;
       }
-      const padV = (max - min) * 0.15 || max * 0.01 || 1;
+      const padV = (max - min) * 0.12 || max * 0.01 || 1;
       min -= padV;
       max += padV;
       const range = max - min || 1;
+      const y = (p: number) => priceTop + (1 - (p - min) / range) * priceH;
 
-      const padRight = 72;
-      const plotW = W - padRight;
-      const slot = plotW / all.length;
-      const bodyW = Math.max(2, slot * 0.6);
-      const y = (p: number) => H - ((p - min) / range) * H;
+      // volume scale
+      let volMax = 0;
+      if (opts.showVolume) {
+        for (const c of view) if (c.volume > volMax) volMax = c.volume;
+        volMax = volMax || 1;
+      }
+      const yVol = (v: number) => priceBottom + volH - (v / volMax) * (volH * 0.85);
 
-      for (let i = 0; i <= 5; i++) {
-        const gy = (H / 5) * i;
-        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+      // background gradient
+      const bg = ctx.createLinearGradient(0, priceTop, 0, priceBottom);
+      bg.addColorStop(0, "rgba(34,197,94,0.035)");
+      bg.addColorStop(1, "rgba(11,15,25,0)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, priceTop, plotW, priceH);
+
+      // horizontal grid + price labels
+      ctx.font = "9px Inter, Arial";
+      ctx.textBaseline = "middle";
+      for (let i = 0; i <= 4; i++) {
+        const gp = min + (range / 4) * i;
+        const gy = y(gp);
+        ctx.strokeStyle = COL.grid;
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, gy);
         ctx.lineTo(plotW, gy);
         ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.3)";
-        ctx.font = "9px Arial";
-        ctx.textAlign = "right";
-        ctx.fillText((max - (range / 5) * i).toFixed(2), plotW + 6, gy + 3);
+        ctx.fillStyle = COL.axis;
+        ctx.textAlign = "left";
+        ctx.fillText(gp.toFixed(2), plotW + 6, gy);
       }
 
-      all.forEach((c, i) => {
-        const cx = slot * i + slot / 2;
-        const up = c.close >= c.open;
-        const color = up ? "#22c55e" : "#ef4444";
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(cx, y(c.high));
-        ctx.lineTo(cx, y(c.low));
-        ctx.stroke();
-
-        const top = Math.min(y(c.open), y(c.close));
-        const h = Math.max(1, Math.abs(y(c.close) - y(c.open)));
-        ctx.fillRect(cx - bodyW / 2, top, bodyW, h);
+      // time labels
+      ctx.fillStyle = "rgba(255,255,255,0.28)";
+      ctx.textAlign = "center";
+      const labelEvery = Math.max(1, Math.ceil(view.length / 6));
+      view.forEach((c, i) => {
+        if (i % labelEvery === 0) {
+          const cx = slot * i + slot / 2;
+          const d = new Date(c.time);
+          const hh = String(d.getHours()).padStart(2, "0");
+          const mm = String(d.getMinutes()).padStart(2, "0");
+          ctx.fillText(`${hh}:${mm}`, cx, H - axisH / 2);
+        }
       });
 
-      const last = all[all.length - 1];
+      // volume bars
+      if (opts.showVolume) {
+        view.forEach((c, i) => {
+          const cx = slot * i + slot / 2;
+          const up = c.close >= c.open;
+          ctx.fillStyle = up ? "rgba(34,197,94,0.26)" : "rgba(239,68,68,0.26)";
+          const vy = yVol(c.volume);
+          ctx.fillRect(cx - bodyW / 2, vy, bodyW, priceBottom + volH - vy);
+        });
+      }
+
+      // price series
+      if (opts.chartType === "candles") {
+        view.forEach((c, i) => {
+          const cx = slot * i + slot / 2;
+          const up = c.close >= c.open;
+          const col = up ? COL.up : COL.down;
+          ctx.strokeStyle = col;
+          ctx.fillStyle = col;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(cx, y(c.high));
+          ctx.lineTo(cx, y(c.low));
+          ctx.stroke();
+          const top = Math.min(y(c.open), y(c.close));
+          const h = Math.max(1, Math.abs(y(c.close) - y(c.open)));
+          ctx.fillRect(cx - bodyW / 2, top, bodyW, h);
+        });
+      } else {
+        const linePath = () => {
+          ctx.beginPath();
+          view.forEach((c, i) => {
+            const cx = slot * i + slot / 2;
+            const yy = y(c.close);
+            if (i === 0) ctx.moveTo(cx, yy);
+            else ctx.lineTo(cx, yy);
+          });
+        };
+        if (opts.chartType === "area") {
+          linePath();
+          ctx.lineTo(slot * (view.length - 1) + slot / 2, priceBottom);
+          ctx.lineTo(slot / 2, priceBottom);
+          ctx.closePath();
+          const grad = ctx.createLinearGradient(0, priceTop, 0, priceBottom);
+          grad.addColorStop(0, "rgba(34,197,94,0.35)");
+          grad.addColorStop(1, "rgba(34,197,94,0)");
+          ctx.fillStyle = grad;
+          ctx.fill();
+        }
+        linePath();
+        ctx.strokeStyle = COL.up;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
+      // moving averages
+      if (opts.showMA) {
+        const drawMA = (period: number, color: string) => {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          let started = false;
+          view.forEach((c, i) => {
+            const s = smaAt(view, period, i);
+            if (s == null) return;
+            const cx = slot * i + slot / 2;
+            const yy = y(s);
+            if (!started) {
+              ctx.moveTo(cx, yy);
+              started = true;
+            } else {
+              ctx.lineTo(cx, yy);
+            }
+          });
+          ctx.stroke();
+        };
+        drawMA(7, COL.ma7);
+        drawMA(25, COL.ma25);
+      }
+
+      // current price line + tag + pulsing dot
+      const last = view[view.length - 1];
       const ly = y(last.close);
-      const up = last.close >= last.open;
-      ctx.strokeStyle = up ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)";
+      const upNow = last.close >= last.open;
+      const liveCol = upNow ? COL.up : COL.down;
+
+      ctx.strokeStyle = upNow ? "rgba(34,197,94,0.35)" : "rgba(239,68,68,0.35)";
       ctx.setLineDash([3, 3]);
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -233,32 +420,125 @@ function LiveCandleChart({
       ctx.stroke();
       ctx.setLineDash([]);
 
+      const tagText = last.close.toFixed(2);
+      ctx.font = "bold 9px Inter, Arial";
+      const tw = ctx.measureText(tagText).width + 12;
+      ctx.fillStyle = liveCol;
+      roundRect(ctx, plotW, ly - 9, Math.min(tw, padRight - 2), 18, 3);
+      ctx.fill();
+      ctx.fillStyle = COL.bgCard;
       ctx.textAlign = "center";
-      const priceColor = last.close >= peakPriceRef.current * 0.9 ? "#22c55e" : "#ef4444";
-      ctx.fillStyle = priceColor;
-      const labelText = last.close.toFixed(2);
-      const metrics = ctx.measureText(labelText);
-      const textWidth = metrics.width + 12;
-      ctx.fillRect(plotW, ly - 10, textWidth, 20);
-      ctx.fillStyle = "#0B0F19";
-      ctx.font = "bold 9px Arial";
-      ctx.fillText(labelText, plotW + textWidth / 2, ly + 3);
+      ctx.fillText(tagText, plotW + Math.min(tw, padRight - 2) / 2, ly);
+
+      const lcx = slot * (view.length - 1) + slot / 2;
+      const pulse = (Math.sin(Date.now() / 600) + 1) / 2;
+      ctx.beginPath();
+      ctx.arc(lcx, ly, 3 + pulse * 3, 0, Math.PI * 2);
+      ctx.fillStyle = upNow
+        ? `rgba(34,197,94,${0.12 + pulse * 0.18})`
+        : `rgba(239,68,68,${0.12 + pulse * 0.18})`;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(lcx, ly, 2.6, 0, Math.PI * 2);
+      ctx.fillStyle = liveCol;
+      ctx.fill();
+
+      // crosshair + OHLC tooltip
+      const hov = hoverRef.current;
+      if (hov && hov.x <= plotW && hov.x >= 0) {
+        let idx = Math.round(hov.x / slot - 0.5);
+        idx = Math.max(0, Math.min(view.length - 1, idx));
+        const c = view[idx];
+        const cx = slot * idx + slot / 2;
+
+        ctx.strokeStyle = COL.cross;
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx, priceTop);
+        ctx.lineTo(cx, priceBottom + volH);
+        ctx.stroke();
+
+        const hy = Math.max(priceTop, Math.min(priceBottom, hov.y));
+        ctx.beginPath();
+        ctx.moveTo(0, hy);
+        ctx.lineTo(plotW, hy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // axis price readout at cursor
+        const hp = min + (1 - (hy - priceTop) / priceH) * range;
+        ctx.fillStyle = "#e5e7eb";
+        roundRect(ctx, plotW, hy - 9, padRight - 2, 18, 3);
+        ctx.fill();
+        ctx.fillStyle = COL.bgCard;
+        ctx.font = "bold 9px Inter, Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(hp.toFixed(2), plotW + (padRight - 2) / 2, hy);
+
+        // OHLC tooltip box
+        const up = c.close >= c.open;
+        const d = new Date(c.time);
+        const tstr = `${String(d.getHours()).padStart(2, "0")}:${String(
+          d.getMinutes()
+        ).padStart(2, "0")}`;
+        const rows = [
+          ["O", c.open.toFixed(2)],
+          ["H", c.high.toFixed(2)],
+          ["L", c.low.toFixed(2)],
+          ["C", c.close.toFixed(2)],
+        ];
+        const boxW = 92;
+        const boxH = 78;
+        let bx = cx + 10;
+        if (bx + boxW > plotW) bx = cx - boxW - 10;
+        bx = Math.max(2, bx);
+        const by = priceTop + 4;
+
+        ctx.fillStyle = "rgba(19,26,42,0.96)";
+        roundRect(ctx, bx, by, boxW, boxH, 6);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.1)";
+        ctx.lineWidth = 1;
+        roundRect(ctx, bx, by, boxW, boxH, 6);
+        ctx.stroke();
+
+        ctx.textAlign = "left";
+        ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.font = "8px Inter, Arial";
+        ctx.fillText(tstr, bx + 8, by + 12);
+        ctx.font = "9px Inter, Arial";
+        rows.forEach((r, i) => {
+          const ry = by + 26 + i * 13;
+          ctx.fillStyle = "rgba(255,255,255,0.5)";
+          ctx.fillText(r[0], bx + 8, ry);
+          ctx.fillStyle = up ? COL.up : COL.down;
+          ctx.textAlign = "right";
+          ctx.fillText(r[1], bx + boxW - 8, ry);
+          ctx.textAlign = "left";
+        });
+      }
+
+      // 24h-style stats (use unpadded highs/lows)
+      const first = view[0];
+      const chg = first.open > 0 ? ((last.close - first.open) / first.open) * 100 : 0;
+      if (hiRef.current) hiRef.current.innerText = rawHi.toFixed(2);
+      if (loRef.current) loRef.current.innerText = rawLo.toFixed(2);
+      if (chgRef.current) {
+        chgRef.current.innerText = `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%`;
+        chgRef.current.style.color = chg >= 0 ? COL.up : COL.down;
+      }
     };
 
+    // ---- loop: read simulator.price (single source of truth) ----
     const loop = () => {
       if (document.hidden) {
         rafRef.current = requestAnimationFrame(loop);
         return;
       }
 
-      // SINGLE SOURCE OF TRUTH: the parent advances simulator.price.
-      // The chart only READS it, so the live price drawn here is always
-      // identical to the value shown on the Total Net Worth card.
       const price = simulator.price;
-
-      if (price > peakPriceRef.current) {
-        peakPriceRef.current = price;
-      }
+      if (price > peakPriceRef.current) peakPriceRef.current = price;
 
       const cur = currentRef.current;
       if (cur) {
@@ -267,21 +547,21 @@ function LiveCandleChart({
         cur.low = Math.min(cur.low, price);
       }
 
-      // Form a new candle every TICKS_PER_CANDLE price updates from the parent.
       if (active && price !== lastSeenPriceRef.current) {
         lastSeenPriceRef.current = price;
+        if (cur) cur.volume += 0.2 + Math.random() * 0.6;
         tickCountRef.current++;
 
-        if (tickCountRef.current >= TICKS_PER_CANDLE && cur) {
+        if (tickCountRef.current >= ticksPerCandle(optsRef.current.timeframe) && cur) {
           candlesRef.current.push({ ...cur });
-          if (candlesRef.current.length > MAX_CANDLES) {
-            candlesRef.current.shift();
-          }
+          if (candlesRef.current.length > MAX_CANDLES) candlesRef.current.shift();
           currentRef.current = {
             open: price,
             high: price,
             low: price,
             close: price,
+            volume: 0,
+            time: Date.now(),
           };
           tickCountRef.current = 0;
         }
@@ -293,15 +573,115 @@ function LiveCandleChart({
 
     rafRef.current = requestAnimationFrame(loop);
 
+    // ---- pointer interaction ----
+    const onMove = (e: MouseEvent) => {
+      const r = canvas.getBoundingClientRect();
+      hoverRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const onLeave = () => {
+      hoverRef.current = null;
+    };
+    const onTouch = (e: TouchEvent) => {
+      if (!e.touches.length) return;
+      const r = canvas.getBoundingClientRect();
+      hoverRef.current = {
+        x: e.touches[0].clientX - r.left,
+        y: e.touches[0].clientY - r.top,
+      };
+    };
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("mouseleave", onLeave);
+    canvas.addEventListener("touchstart", onTouch, { passive: true });
+    canvas.addEventListener("touchmove", onTouch, { passive: true });
+    canvas.addEventListener("touchend", onLeave);
+
     return () => {
       window.removeEventListener("resize", resize);
+      canvas.removeEventListener("mousemove", onMove);
+      canvas.removeEventListener("mouseleave", onLeave);
+      canvas.removeEventListener("touchstart", onTouch);
+      canvas.removeEventListener("touchmove", onTouch);
+      canvas.removeEventListener("touchend", onLeave);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [active, simulator, value]);
 
+  const segBtn = (selected: boolean) =>
+    `px-2.5 py-1 rounded-md text-[11px] font-medium transition ${
+      selected
+        ? "bg-white/10 text-white"
+        : "text-gray-500 hover:text-gray-300"
+    }`;
+
   return (
     <div className="w-full">
-      <canvas ref={canvasRef} style={{ width: "100%", height: "200px", display: "block" }} />
+      {/* stats row */}
+      <div className="flex items-center gap-4 mb-2 text-[11px]">
+        <div className="flex items-center gap-1">
+          <span className="text-gray-500">24h H</span>
+          <span ref={hiRef} className="text-gray-200 font-mono">—</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-gray-500">24h L</span>
+          <span ref={loRef} className="text-gray-200 font-mono">—</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-gray-500">Chg</span>
+          <span ref={chgRef} className="font-mono text-green-400">—</span>
+        </div>
+      </div>
+
+      {/* controls */}
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+        <div className="flex items-center gap-1 bg-[#0B0F19] rounded-lg p-0.5 border border-white/5">
+          {(["candles", "line", "area"] as ChartType[]).map((t) => (
+            <button key={t} onClick={() => setChartType(t)} className={segBtn(chartType === t)}>
+              {t === "candles" ? "Candles" : t === "line" ? "Line" : "Area"}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-[#0B0F19] rounded-lg p-0.5 border border-white/5">
+            {(["1m", "5m", "15m"] as Timeframe[]).map((t) => (
+              <button key={t} onClick={() => setTimeframe(t)} className={segBtn(timeframe === t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowMA((v) => !v)}
+            className={segBtn(showMA)}
+            title="Moving averages"
+          >
+            MA
+          </button>
+          <button
+            onClick={() => setShowVolume((v) => !v)}
+            className={segBtn(showVolume)}
+            title="Volume"
+          >
+            Vol
+          </button>
+        </div>
+      </div>
+
+      {/* legend */}
+      {showMA && (
+        <div className="flex items-center gap-3 mb-2 text-[10px] text-gray-500">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-[2px]" style={{ background: COL.ma7 }} /> MA 7
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-[2px]" style={{ background: COL.ma25 }} /> MA 25
+          </span>
+        </div>
+      )}
+
+      <canvas
+        ref={canvasRef}
+        style={{ width: "100%", height: "260px", display: "block", cursor: "crosshair" }}
+      />
     </div>
   );
 }
@@ -440,11 +820,10 @@ export default function PortfolioPage() {
     if (loading || !simulatorRef.current) return;
     const sim = simulatorRef.current;
 
-    // Not trading: hold both the card and the chart at the real total.
     if (!earning || earning.status !== "active") {
       loopInstanceIdRef.current = null;
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      sim.price = realTotal; // chart reads this too, so they stay aligned at rest
+      sim.price = realTotal;
       const t = setTimeout(() => {
         if (domBalanceRef.current) {
           domBalanceRef.current.innerText = formatUSD(realTotal);
@@ -463,13 +842,12 @@ export default function PortfolioPage() {
       return () => clearTimeout(t);
     }
 
-    // Active trading: drive one tick every TICK_MS.
     const instanceId = Math.random().toString(36).substring(2, 9);
     loopInstanceIdRef.current = instanceId;
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
-    const TICK_MS = 2000;   // how often a new price prints (matches a chart step)
-    const BAND = 0.08;      // keep the wander within ±8% of the real total
+    const TICK_MS = 800;   // how often a new price prints (consumed by card + chart)
+    const BAND = 0.08;     // keep the wander within ±8% of the real total
 
     let previous = sim.price || realTotal;
     let maxValue = previous;
@@ -486,13 +864,12 @@ export default function PortfolioPage() {
       if (ts - lastTick >= TICK_MS) {
         lastTick = ts;
 
-        // advance, then softly anchor toward the real total and clamp to the band
         const raw = sim.nextPrice();
         const anchored = raw + (realTotal - raw) * 0.03;
         const lo = realTotal * (1 - BAND);
         const hi = realTotal * (1 + BAND);
         const price = Math.min(Math.max(anchored, lo), hi);
-        sim.price = price; // <-- single source of truth; the chart reads this
+        sim.price = price; // single source of truth; the chart reads this
 
         if (price > maxValue) maxValue = price;
         const drawdown = maxValue > 0 ? (maxValue - price) / maxValue : 0;
