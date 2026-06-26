@@ -41,7 +41,7 @@ const formatUSD = (n: number) =>
    Uses geometric Brownian motion with volatility, trend, and mean reversion
    ============================================================= */
 class PriceSimulator {
-  private price: number;
+  public price: number; // ✅ Made public so chart can read it
   private trend: number;
   private volatility: number;
   private mean: number;
@@ -52,16 +52,11 @@ class PriceSimulator {
   constructor(initialPrice: number) {
     this.price = initialPrice;
     this.trend = 0;
-    this.volatility = 0.002; // 0.2% base volatility
+    this.volatility = 0.0008; // ✅ Slower volatility
     this.mean = initialPrice;
-    this.trendStrength = 0.0001;
-    this.meanReversion = 0.01;
+    this.trendStrength = 0.00005;
+    this.meanReversion = 0.005;
     this.lastUpdate = Date.now();
-  }
-
-  // ✅ Getter for price (fixes the private access issue)
-  getCurrentPrice(): number {
-    return this.price;
   }
 
   // Generate realistic price with trends, volatility spikes, and mean reversion
@@ -70,43 +65,37 @@ class PriceSimulator {
     const dt = Math.min((now - this.lastUpdate) / 1000, 1);
     this.lastUpdate = now;
 
-    // Randomly shift trend every 10-30 seconds
-    if (Math.random() < 0.01 * dt) {
-      this.trend = (Math.random() - 0.5) * 0.0008;
-      this.mean = this.price * (1 + (Math.random() - 0.5) * 0.005);
+    // Slower trend shifts
+    if (Math.random() < 0.005 * dt) {
+      this.trend = (Math.random() - 0.5) * 0.0004;
+      this.mean = this.price * (1 + (Math.random() - 0.5) * 0.003);
     }
 
-    // Volatility spikes (market events)
+    // Reduced volatility spikes
     let vol = this.volatility;
-    if (Math.random() < 0.002 * dt) {
-      vol = this.volatility * (2 + Math.random() * 3); // 2-5x spike
+    if (Math.random() < 0.001 * dt) {
+      vol = this.volatility * (2 + Math.random() * 2);
     }
 
-    // Geometric Brownian Motion with mean reversion
     const drift = this.trend + this.meanReversion * (this.mean - this.price) / this.price;
     const noise = vol * Math.sqrt(dt) * this.randomNormal();
     const change = drift * dt + noise;
     
-    // Apply with safety bounds
     let newPrice = this.price * (1 + change);
     
-    // Prevent extreme moves (>15% in one tick)
-    const maxMove = 0.15;
+    // Tighter safety bounds
+    const maxMove = 0.08;
     if (Math.abs(change) > maxMove) {
       newPrice = this.price * (1 + Math.sign(change) * maxMove);
     }
     
-    // Keep price positive
     newPrice = Math.max(newPrice, 0.01);
-    
-    // Update mean gradually
-    this.mean = this.mean * (1 - 0.0001 * dt) + newPrice * 0.0001 * dt;
+    this.mean = this.mean * (1 - 0.00005 * dt) + newPrice * 0.00005 * dt;
     
     this.price = newPrice;
     return this.price;
   }
 
-  // Box-Muller transform for normal distribution
   private randomNormal(): number {
     let u = 0, v = 0;
     while (u === 0) u = Math.random();
@@ -114,53 +103,30 @@ class PriceSimulator {
     return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
   }
 
-  // Update target price for chart
   setTarget(target: number) {
     this.mean = target;
   }
 }
 
 /* =============================================================
-   REALISTIC CANDLESTICK CHART
+   REALISTIC CANDLESTICK CHART - SHARES SIMULATOR WITH PARENT
    ============================================================= */
 function LiveCandleChart({
   value,
   active,
-  depositAmount,
+  simulator, // ✅ Receive simulator from parent
 }: {
   value: number;
   active: boolean;
-  depositAmount: number;
+  simulator: PriceSimulator | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const simulatorRef = useRef<PriceSimulator | null>(null);
   const candlesRef = useRef<Candle[]>([]);
   const currentRef = useRef<Candle | null>(null);
-  const priceHistoryRef = useRef<number[]>([]);
   const tickCountRef = useRef(0);
   const lastTickRef = useRef(0);
   const rafRef = useRef<number | null>(null);
-  const maxDrawdownRef = useRef(0);
   const peakPriceRef = useRef(value);
-
-  // ✅ SYNC: Reset simulator when value changes significantly
-  useEffect(() => {
-    if (simulatorRef.current) {
-      // ✅ Use getter method instead of direct access
-      const currentSimValue = simulatorRef.current.getCurrentPrice();
-      const diff = Math.abs(value - currentSimValue) / currentSimValue;
-      // If difference is more than 5%, reset to match
-      if (diff > 0.05) {
-        simulatorRef.current = new PriceSimulator(value);
-        peakPriceRef.current = value;
-        // Reset candles to match new value
-        candlesRef.current = [];
-        currentRef.current = null;
-        priceHistoryRef.current = [];
-        tickCountRef.current = 0;
-      }
-    }
-  }, [value]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -168,34 +134,41 @@ function LiveCandleChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const TICK_MS = 500; // Faster ticks for more realistic movement
-    const TICKS_PER_CANDLE = 30; // 15 seconds per candle
-    const MAX_CANDLES = 80;
+    // ✅ SLOWER TICKS FOR REALISTIC MOVEMENT
+    const TICK_MS = 2000; // 2 seconds per tick
+    const TICKS_PER_CANDLE = 30; // 60 seconds (1 minute) per candle
+    const MAX_CANDLES = 60;
 
     // Initialize with realistic price history
-    if (candlesRef.current.length === 0) {
+    if (candlesRef.current.length === 0 && simulator) {
       let seed = value || 1000;
-      const simulator = new PriceSimulator(seed);
+      // Use the shared simulator to generate initial candles
+      const tempSim = new PriceSimulator(seed);
       
-      // Generate initial candles with realistic volatility
       for (let i = 0; i < MAX_CANDLES; i++) {
         const open = seed;
-        const close = simulator.nextPrice();
-        const high = Math.max(open, close) * (1 + Math.random() * 0.002);
-        const low = Math.min(open, close) * (1 - Math.random() * 0.002);
+        let close = seed;
+        let high = seed;
+        let low = seed;
+        
+        // Generate 1 minute of price movement
+        for (let t = 0; t < 60; t++) {
+          close = tempSim.nextPrice();
+          high = Math.max(high, close);
+          low = Math.min(low, close);
+        }
+        
         candlesRef.current.push({ open, high, low, close });
         seed = close;
       }
       
       const lastPrice = candlesRef.current[candlesRef.current.length - 1].close;
-      simulatorRef.current = new PriceSimulator(lastPrice);
       currentRef.current = { 
         open: lastPrice, 
         high: lastPrice, 
         low: lastPrice, 
         close: lastPrice 
       };
-      priceHistoryRef.current = candlesRef.current.map(c => c.close);
       peakPriceRef.current = lastPrice;
     }
 
@@ -233,20 +206,21 @@ function LiveCandleChart({
       const padRight = 72;
       const plotW = W - padRight;
       const slot = plotW / all.length;
-      const bodyW = Math.max(2, slot * 0.5);
+      const bodyW = Math.max(2, slot * 0.6);
       const y = (p: number) => H - ((p - min) / range) * H;
 
       // Grid
       ctx.lineWidth = 1;
       ctx.font = "9px Arial";
+      ctx.textAlign = "right";
       for (let i = 0; i <= 5; i++) {
         const gy = (H / 5) * i;
-        ctx.strokeStyle = "rgba(255,255,255,0.04)";
+        ctx.strokeStyle = "rgba(255,255,255,0.05)";
         ctx.beginPath();
         ctx.moveTo(0, gy);
         ctx.lineTo(plotW, gy);
         ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.fillStyle = "rgba(255,255,255,0.3)";
         ctx.fillText((max - (range / 5) * i).toFixed(2), plotW + 6, gy + 3);
       }
 
@@ -283,12 +257,16 @@ function LiveCandleChart({
       ctx.setLineDash([]);
 
       // Current price label
+      ctx.textAlign = "center";
       const priceColor = last.close >= peakPriceRef.current * 0.9 ? "#22c55e" : "#ef4444";
       ctx.fillStyle = priceColor;
-      ctx.fillRect(plotW, ly - 10, padRight, 20);
+      const labelText = last.close.toFixed(2);
+      const metrics = ctx.measureText(labelText);
+      const textWidth = metrics.width + 12;
+      ctx.fillRect(plotW, ly - 10, textWidth, 20);
       ctx.fillStyle = "#0B0F19";
       ctx.font = "bold 9px Arial";
-      ctx.fillText(last.close.toFixed(2), plotW + 6, ly + 3);
+      ctx.fillText(labelText, plotW + textWidth / 2, ly + 3);
     };
 
     const loop = (ts: number) => {
@@ -300,50 +278,40 @@ function LiveCandleChart({
 
       if (!lastTickRef.current) lastTickRef.current = ts;
 
-      if (active && ts - lastTickRef.current >= TICK_MS) {
+      // ✅ Use the shared simulator from parent
+      if (active && simulator && ts - lastTickRef.current >= TICK_MS) {
         lastTickRef.current = ts;
 
-        const simulator = simulatorRef.current;
-        if (simulator) {
-          // Generate realistic price
-          const newPrice = simulator.nextPrice();
-          
-          // Update peak for drawdown tracking
-          if (newPrice > peakPriceRef.current) {
-            peakPriceRef.current = newPrice;
-          }
-          
-          const drawdown = (peakPriceRef.current - newPrice) / peakPriceRef.current;
-          if (drawdown > maxDrawdownRef.current) {
-            maxDrawdownRef.current = drawdown;
-          }
+        // ✅ Get the current price from the shared simulator
+        const newPrice = simulator.price;
+        
+        // Update peak for drawdown tracking
+        if (newPrice > peakPriceRef.current) {
+          peakPriceRef.current = newPrice;
+        }
 
-          priceHistoryRef.current.push(newPrice);
-          if (priceHistoryRef.current.length > 200) {
-            priceHistoryRef.current.shift();
-          }
+        const cur = currentRef.current;
+        if (cur) {
+          cur.close = newPrice;
+          cur.high = Math.max(cur.high, newPrice);
+          cur.low = Math.min(cur.low, newPrice);
+        }
 
-          const cur = currentRef.current;
-          if (cur) {
-            cur.close = newPrice;
-            cur.high = Math.max(cur.high, newPrice);
-            cur.low = Math.min(cur.low, newPrice);
+        tickCountRef.current++;
+        
+        // Candle completes after TICKS_PER_CANDLE ticks
+        if (tickCountRef.current >= TICKS_PER_CANDLE && cur) {
+          candlesRef.current.push({ ...cur });
+          if (candlesRef.current.length > MAX_CANDLES) {
+            candlesRef.current.shift();
           }
-
-          tickCountRef.current++;
-          if (tickCountRef.current >= TICKS_PER_CANDLE && cur) {
-            candlesRef.current.push({ ...cur });
-            if (candlesRef.current.length > MAX_CANDLES) {
-              candlesRef.current.shift();
-            }
-            currentRef.current = {
-              open: newPrice,
-              high: newPrice,
-              low: newPrice,
-              close: newPrice,
-            };
-            tickCountRef.current = 0;
-          }
+          currentRef.current = {
+            open: newPrice,
+            high: newPrice,
+            low: newPrice,
+            close: newPrice,
+          };
+          tickCountRef.current = 0;
         }
       }
 
@@ -357,7 +325,7 @@ function LiveCandleChart({
       window.removeEventListener("resize", resize);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [active, value]);
+  }, [active, simulator, value]);
 
   return (
     <div className="w-full">
@@ -394,6 +362,8 @@ export default function PortfolioPage() {
   const mountedRef = useRef(true);
   const realTotalRef = useRef(0);
   const previousValueRef = useRef(0);
+  
+  // ✅ SINGLE SHARED SIMULATOR INSTANCE
   const simulatorRef = useRef<PriceSimulator | null>(null);
 
   useEffect(() => {
@@ -511,10 +481,9 @@ export default function PortfolioPage() {
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
-    // Initialize simulator with deposit amount
+    // ✅ Initialize SINGLE shared simulator
     if (!simulatorRef.current) {
       simulatorRef.current = new PriceSimulator(realTotal);
-      // Set initial display value to match realTotal
       setDisplayValue(realTotal);
       previousValueRef.current = realTotal;
     }
@@ -530,27 +499,22 @@ export default function PortfolioPage() {
 
       const simulator = simulatorRef.current;
       if (simulator) {
-        // Generate realistic price movement
+        // ✅ Generate ONE price update that both balance and chart use
         const newPrice = simulator.nextPrice();
         
         // Scale movement to portfolio value
-        const volatility = 0.002; // 0.2% per tick
+        const volatility = 0.0008;
         const movement = (newPrice / 1000) * volatility;
         
-        // Add market trend with occasional large moves
         let trend = 0;
         if (Math.random() < 0.001) {
-          trend = (Math.random() - 0.5) * 0.01;
+          trend = (Math.random() - 0.5) * 0.005;
         }
         
-        // Mean reversion to realTotal
         const reversion = (realTotal - current) * 0.0005;
-        
-        // Combine movements
         const change = movement + trend + reversion;
         const nextValue = Math.max(current * (1 + change), 0.01);
         
-        // Ensure we don't deviate too far from target
         const maxDeviation = 0.15;
         const deviation = (nextValue - realTotal) / realTotal;
         let finalValue = nextValue;
@@ -573,7 +537,6 @@ export default function PortfolioPage() {
         
         // Update display
         if (mountedRef.current) {
-          // ✅ CRITICAL FIX: Always sync displayValue with current
           setDisplayValue(current);
           const changeAmount = current - previousValueRef.current;
           setPriceChange(changeAmount);
@@ -805,7 +768,7 @@ export default function PortfolioPage() {
         <LiveCandleChart
           value={earning ? displayValue : userBalance}
           active={earning?.status === "active"}
-          depositAmount={earning?.depositAmount || 0}
+          simulator={simulatorRef.current} // ✅ Pass the shared simulator
         />
       </div>
 
