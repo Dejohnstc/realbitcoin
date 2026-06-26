@@ -37,7 +37,7 @@ const formatUSD = (n: number) =>
   }).format(Number.isFinite(n) ? n : 0);
 
 /* =============================================================
-   REALISTIC PRICE SIMULATOR - LIKE MT5
+   REALISTIC PRICE SIMULATOR
    ============================================================= */
 class PriceSimulator {
   public price: number;
@@ -129,7 +129,6 @@ function LiveCandleChart({
     const TICKS_PER_CANDLE = 30;
     const MAX_CANDLES = 60;
 
-    // Fixed Bug A: Historic collection seeds reliably on mount
     if (candlesRef.current.length === 0) {
       let seed = value || 1000;
       const tempSim = new PriceSimulator(seed);
@@ -256,7 +255,6 @@ function LiveCandleChart({
 
       if (!lastTickRef.current) lastTickRef.current = ts;
 
-      // Fixed Bug B: Reliably mutates and tracks synchronized engine value references
       if (active && ts - lastTickRef.current >= TICK_MS) {
         lastTickRef.current = ts;
         const newPrice = simulator.price;
@@ -326,7 +324,7 @@ export default function PortfolioPage() {
   const frameRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
   
-  // Real-time DOM value target hooks avoiding state layout trashing loops
+  // Real-time DOM references
   const domBalanceRef = useRef<HTMLHeadingElement | null>(null);
   const domChartBalanceRef = useRef<HTMLHeadingElement | null>(null);
   const domPercentRef = useRef<HTMLSpanElement | null>(null);
@@ -336,7 +334,6 @@ export default function PortfolioPage() {
     ? (earning.depositAmount || 0) + (earning.earnedSoFar || 0)
     : userBalance;
 
-  // Single Shared Simulator instance using a clean initializer structure
   const simulatorRef = useRef<PriceSimulator | null>(null);
   if (!simulatorRef.current && !loading) {
     simulatorRef.current = new PriceSimulator(realTotal);
@@ -433,14 +430,17 @@ export default function PortfolioPage() {
     return () => clearInterval(interval);
   }, [earning]);
 
-  // Performance-Optimized Live Engine loop writing updates directly to the DOM nodes
+  // Fixed display lag by using safe structural frame fallback boundaries
   useEffect(() => {
     if (loading || !simulatorRef.current) return;
     
     if (!earning || earning.status !== "active") {
-      if (domBalanceRef.current) domBalanceRef.current.innerText = formatUSD(realTotal);
-      if (domChartBalanceRef.current) domChartBalanceRef.current.innerText = formatUSD(realTotal);
-      return;
+      // Small structural fallback layout timeout to ensure references are bound after loading drops
+      const t = setTimeout(() => {
+        if (domBalanceRef.current) domBalanceRef.current.innerText = formatUSD(realTotal);
+        if (domChartBalanceRef.current) domChartBalanceRef.current.innerText = formatUSD(realTotal);
+      }, 50);
+      return () => clearTimeout(t);
     }
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
@@ -489,7 +489,7 @@ export default function PortfolioPage() {
         const changePercent = previous > 0 ? (changeAmount / previous) * 100 : 0;
         const isUpNow = current >= previous;
 
-        // Perform fast direct DOM updates, completely preventing component lag
+        // Verify elements are bound in the DOM layout before updating
         if (domBalanceRef.current) {
           domBalanceRef.current.innerText = formatUSD(current);
           domBalanceRef.current.className = `text-4xl font-bold transition-all duration-300 ${isUpNow ? "text-green-400" : "text-red-400"}`;
@@ -512,9 +512,13 @@ export default function PortfolioPage() {
       frameRef.current = requestAnimationFrame(animate);
     };
 
-    frameRef.current = requestAnimationFrame(animate);
+    // Delay initialization slightly to let the loading DOM fully unmount
+    const frameDelay = setTimeout(() => {
+      frameRef.current = requestAnimationFrame(animate);
+    }, 60);
 
     return () => {
+      clearTimeout(frameDelay);
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
   }, [earning, realTotal, loading, maxDrawdown]);
@@ -557,7 +561,6 @@ export default function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white px-4 pb-24">
-      {/* Standard Tailwind CSS Global keyframe injection config mapping */}
       <style>{`
         @keyframes tickerScroll {
           0% { transform: translate3d(0, 0, 0); }
@@ -586,7 +589,7 @@ export default function PortfolioPage() {
         </div>
       )}
 
-      {/* Ticker Box Container */}
+      {/* Ticker Container */}
       <div className="overflow-hidden mb-4 bg-[#131A2A] rounded-xl py-2 px-4 border border-gray-800 flex">
         <div className="animate-ticker gap-8 whitespace-nowrap text-sm">
           {ticker.map((t, i) => (
@@ -597,7 +600,7 @@ export default function PortfolioPage() {
         </div>
       </div>
 
-      {/* Main Balance Layout Frame */}
+      {/* Main Net Worth Balance Card */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#131A2A] via-[#1A2235] to-[#101827] p-6 rounded-3xl mb-4 border border-yellow-500/20 shadow-[0_0_40px_rgba(250,204,21,0.08)]">
         <div className="absolute -top-20 -right-20 w-48 h-48 bg-yellow-400/10 blur-3xl rounded-full" />
 
@@ -613,8 +616,9 @@ export default function PortfolioPage() {
           </div>
         </div>
 
+        {/* Target elements given initial values to prevent blank spaces on first paint */}
         <h2 ref={domBalanceRef} className="text-4xl font-bold text-white">
-          {formatUSD(earning ? realTotal : userBalance)}
+          {formatUSD(realTotal)}
         </h2>
 
         <div className="flex items-center gap-4 mt-2">
@@ -626,7 +630,7 @@ export default function PortfolioPage() {
           </div>
           <div className="flex items-center gap-2">
             <span ref={domChangeRef} className="text-sm text-gray-400">
-              -
+              $0.00
             </span>
           </div>
         </div>
@@ -713,7 +717,7 @@ export default function PortfolioPage() {
           <div>
             <p className="text-gray-500 text-xs">Current Portfolio Value</p>
             <h3 ref={domChartBalanceRef} className="font-bold text-lg text-white">
-              {formatUSD(earning ? realTotal : userBalance)}
+              {formatUSD(realTotal)}
             </h3>
           </div>
           <div className="flex items-center gap-2">
@@ -724,14 +728,14 @@ export default function PortfolioPage() {
         
         {simulatorRef.current && (
           <LiveCandleChart
-            value={earning ? realTotal : userBalance}
+            value={realTotal}
             active={earning?.status === "active"}
             simulator={simulatorRef.current}
           />
         )}
       </div>
 
-      {/* Insight Controls Panel */}
+      {/* Insight Panel */}
       <div className="bg-[#131A2A] p-5 rounded-2xl">
         <div className="flex justify-between items-center">
           <p className="text-gray-400 text-sm">Earn Balance</p>
