@@ -322,6 +322,7 @@ export default function PortfolioPage() {
 
   const router = useRouter();
   const frameRef = useRef<number | null>(null);
+  const loopInstanceIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
   
   // Real-time DOM references
@@ -430,18 +431,21 @@ export default function PortfolioPage() {
     return () => clearInterval(interval);
   }, [earning]);
 
-  // Fixed display lag by using safe structural frame fallback boundaries
+  // Fix: Explicitly track loop IDs to eliminate ghost execution lines
   useEffect(() => {
     if (loading || !simulatorRef.current) return;
     
     if (!earning || earning.status !== "active") {
-      // Small structural fallback layout timeout to ensure references are bound after loading drops
       const t = setTimeout(() => {
         if (domBalanceRef.current) domBalanceRef.current.innerText = formatUSD(realTotal);
         if (domChartBalanceRef.current) domChartBalanceRef.current.innerText = formatUSD(realTotal);
       }, 50);
       return () => clearTimeout(t);
     }
+
+    // Set unique signature token for the active thread instance loop
+    const instanceId = Math.random().toString(36).substring(2, 9);
+    loopInstanceIdRef.current = instanceId;
 
     if (frameRef.current) cancelAnimationFrame(frameRef.current);
 
@@ -450,6 +454,9 @@ export default function PortfolioPage() {
     let previous = realTotal;
 
     const animate = () => {
+      // Self-terminate tracking block if a cleanup has overwritten this loop instance run
+      if (loopInstanceIdRef.current !== instanceId) return;
+
       if (document.hidden) {
         frameRef.current = requestAnimationFrame(animate);
         return;
@@ -489,7 +496,6 @@ export default function PortfolioPage() {
         const changePercent = previous > 0 ? (changeAmount / previous) * 100 : 0;
         const isUpNow = current >= previous;
 
-        // Verify elements are bound in the DOM layout before updating
         if (domBalanceRef.current) {
           domBalanceRef.current.innerText = formatUSD(current);
           domBalanceRef.current.className = `text-4xl font-bold transition-all duration-300 ${isUpNow ? "text-green-400" : "text-red-400"}`;
@@ -512,12 +518,12 @@ export default function PortfolioPage() {
       frameRef.current = requestAnimationFrame(animate);
     };
 
-    // Delay initialization slightly to let the loading DOM fully unmount
     const frameDelay = setTimeout(() => {
       frameRef.current = requestAnimationFrame(animate);
     }, 60);
 
     return () => {
+      loopInstanceIdRef.current = null; // Unlocks thread allocation instantly
       clearTimeout(frameDelay);
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
@@ -616,7 +622,6 @@ export default function PortfolioPage() {
           </div>
         </div>
 
-        {/* Target elements given initial values to prevent blank spaces on first paint */}
         <h2 ref={domBalanceRef} className="text-4xl font-bold text-white">
           {formatUSD(realTotal)}
         </h2>
