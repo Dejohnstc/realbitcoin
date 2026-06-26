@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Wallet, TrendingUp, Lock, TrendingDown, DollarSign } from "lucide-react";
+import { ArrowLeft, Wallet, TrendingUp } from "lucide-react";
 
 /* ---------- types ---------- */
 interface Earning {
@@ -57,6 +57,11 @@ class PriceSimulator {
     this.trendStrength = 0.0001;
     this.meanReversion = 0.01;
     this.lastUpdate = Date.now();
+  }
+
+  // ✅ Getter for price (fixes the private access issue)
+  getCurrentPrice(): number {
+    return this.price;
   }
 
   // Generate realistic price with trends, volatility spikes, and mean reversion
@@ -138,10 +143,22 @@ function LiveCandleChart({
   const maxDrawdownRef = useRef(0);
   const peakPriceRef = useRef(value);
 
-  // Initialize simulator
+  // ✅ SYNC: Reset simulator when value changes significantly
   useEffect(() => {
-    if (!simulatorRef.current) {
-      simulatorRef.current = new PriceSimulator(value);
+    if (simulatorRef.current) {
+      // ✅ Use getter method instead of direct access
+      const currentSimValue = simulatorRef.current.getCurrentPrice();
+      const diff = Math.abs(value - currentSimValue) / currentSimValue;
+      // If difference is more than 5%, reset to match
+      if (diff > 0.05) {
+        simulatorRef.current = new PriceSimulator(value);
+        peakPriceRef.current = value;
+        // Reset candles to match new value
+        candlesRef.current = [];
+        currentRef.current = null;
+        priceHistoryRef.current = [];
+        tickCountRef.current = 0;
+      }
     }
   }, [value]);
 
@@ -370,7 +387,6 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [equityHistory, setEquityHistory] = useState<number[]>([]);
   const [maxDrawdown, setMaxDrawdown] = useState(0);
 
   const router = useRouter();
@@ -487,101 +503,97 @@ export default function PortfolioPage() {
   }, [realTotal]);
 
   /* ---------- REALISTIC BALANCE SIMULATION ---------- */
-  /* ---------- REALISTIC BALANCE SIMULATION ---------- */
-useEffect(() => {
-  if (!earning || earning.status !== "active") {
-    setDisplayValue(realTotal);
-    return;
-  }
-
-  if (frameRef.current) cancelAnimationFrame(frameRef.current);
-
-  // Initialize simulator with deposit amount
-  if (!simulatorRef.current) {
-    simulatorRef.current = new PriceSimulator(realTotal);
-  }
-
-  let current = realTotal;
-  const history: number[] = [];
-  let maxValue = realTotal;
-
-  const animate = () => {
-    if (document.hidden) {
-      frameRef.current = requestAnimationFrame(animate);
+  useEffect(() => {
+    if (!earning || earning.status !== "active") {
+      setDisplayValue(realTotal);
       return;
     }
 
-    const simulator = simulatorRef.current;
-    if (simulator) {
-      // Generate realistic price movement
-      const newPrice = simulator.nextPrice();
-      
-      // Scale movement to portfolio value
-      const volatility = 0.002; // 0.2% per tick
-      const movement = (newPrice / 1000) * volatility;
-      
-      // Add market trend with occasional large moves
-      let trend = 0;
-      if (Math.random() < 0.001) {
-        trend = (Math.random() - 0.5) * 0.01; // 1% trend shift
-      }
-      
-      // Mean reversion to target (using realTotal directly)
-      const reversion = (realTotal - current) * 0.0005;
-      
-      // Combine movements
-      const change = movement + trend + reversion;
-      const nextValue = Math.max(current * (1 + change), 0.01);
-      
-      // Ensure we don't deviate too far from target
-      const maxDeviation = 0.15; // 15% max deviation
-      const deviation = (nextValue - realTotal) / realTotal;
-      let finalValue = nextValue;
-      if (deviation > maxDeviation) {
-        finalValue = realTotal * (1 + maxDeviation);
-      } else if (deviation < -maxDeviation * 0.5) {
-        // Allow bigger drops (50% of max deviation)
-        finalValue = realTotal * (1 - maxDeviation * 0.5);
-      }
-      
-      current = finalValue;
-      
-      // Track max value for drawdown
-      if (current > maxValue) {
-        maxValue = current;
-      }
-      const drawdown = (maxValue - current) / maxValue;
-      if (drawdown > maxDrawdown) {
-        setMaxDrawdown(drawdown);
-      }
-      
-      // Store history for performance tracking
-      history.push(current);
-      if (history.length > 300) history.shift();
-      setEquityHistory(history);
-      
-      // Update display
-      if (mountedRef.current) {
-        setDisplayValue(current);
-        const changeAmount = current - previousValueRef.current;
-        setPriceChange(changeAmount);
-        setPriceChangePercent(previousValueRef.current > 0 
-          ? (changeAmount / previousValueRef.current) * 100 
-          : 0);
-        setIsUp(current >= previousValueRef.current);
-        previousValueRef.current = current;
-      }
+    if (frameRef.current) cancelAnimationFrame(frameRef.current);
+
+    // Initialize simulator with deposit amount
+    if (!simulatorRef.current) {
+      simulatorRef.current = new PriceSimulator(realTotal);
+      // Set initial display value to match realTotal
+      setDisplayValue(realTotal);
+      previousValueRef.current = realTotal;
     }
 
+    let current = realTotal;
+    let maxValue = realTotal;
+
+    const animate = () => {
+      if (document.hidden) {
+        frameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      const simulator = simulatorRef.current;
+      if (simulator) {
+        // Generate realistic price movement
+        const newPrice = simulator.nextPrice();
+        
+        // Scale movement to portfolio value
+        const volatility = 0.002; // 0.2% per tick
+        const movement = (newPrice / 1000) * volatility;
+        
+        // Add market trend with occasional large moves
+        let trend = 0;
+        if (Math.random() < 0.001) {
+          trend = (Math.random() - 0.5) * 0.01;
+        }
+        
+        // Mean reversion to realTotal
+        const reversion = (realTotal - current) * 0.0005;
+        
+        // Combine movements
+        const change = movement + trend + reversion;
+        const nextValue = Math.max(current * (1 + change), 0.01);
+        
+        // Ensure we don't deviate too far from target
+        const maxDeviation = 0.15;
+        const deviation = (nextValue - realTotal) / realTotal;
+        let finalValue = nextValue;
+        if (deviation > maxDeviation) {
+          finalValue = realTotal * (1 + maxDeviation);
+        } else if (deviation < -maxDeviation * 0.5) {
+          finalValue = realTotal * (1 - maxDeviation * 0.5);
+        }
+        
+        current = finalValue;
+        
+        // Track max value for drawdown
+        if (current > maxValue) {
+          maxValue = current;
+        }
+        const drawdown = (maxValue - current) / maxValue;
+        if (drawdown > maxDrawdown) {
+          setMaxDrawdown(drawdown);
+        }
+        
+        // Update display
+        if (mountedRef.current) {
+          // ✅ CRITICAL FIX: Always sync displayValue with current
+          setDisplayValue(current);
+          const changeAmount = current - previousValueRef.current;
+          setPriceChange(changeAmount);
+          setPriceChangePercent(previousValueRef.current > 0 
+            ? (changeAmount / previousValueRef.current) * 100 
+            : 0);
+          setIsUp(current >= previousValueRef.current);
+          previousValueRef.current = current;
+        }
+      }
+
+      frameRef.current = requestAnimationFrame(animate);
+    };
+
     frameRef.current = requestAnimationFrame(animate);
-  };
 
-  frameRef.current = requestAnimationFrame(animate);
-
-  return () => {
-    if (frameRef.current) cancelAnimationFrame(frameRef.current);
-  };
-}, [earning, realTotal]);
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [earning, realTotal]);
 
   const roi = earning && earning.depositAmount > 0
     ? (earning.earnedSoFar / earning.depositAmount) * 100
