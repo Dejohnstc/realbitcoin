@@ -1,70 +1,107 @@
 import { connectDB } from "@/lib/mongodb";
 import Investment from "@/models/Investment";
 import User from "@/models/User";
+import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-export async function POST() {
-try {
-await connectDB();
+export async function POST(req: Request) {
+  try {
+    await connectDB();
 
+    // ✅ Add authentication (security)
+    const token = req.headers.get("authorization")?.split(" ")[1];
+    const decoded = verifyToken(token || "");
 
-const now = new Date();
-
-const investments = await Investment.find({
-  status: "active",
-  endDate: { $lte: now },
-});
-
-let completedCount = 0;
-
-for (const inv of investments) {
-  const profitAmount =
-    inv.amount * (inv.profit / 100);
-
-  await User.findByIdAndUpdate(
-    inv.userId,
-    {
-      $inc: {
-        balance:
-          inv.amount + profitAmount,
-
-        // 🔥 unlock investment funds
-        lockedBalance: -inv.amount,
-      },
+    if (!decoded?.userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
-  );
 
-  inv.status = "completed";
+    // ✅ Optional: Check if user is admin
+    const user = await User.findById(decoded.userId);
+    if (!user || user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Admin access required" },
+        { status: 403 }
+      );
+    }
 
-  await inv.save();
+    const now = new Date();
 
-  completedCount++;
-}
+    const investments = await Investment.find({
+      status: "active",
+      endDate: { $lte: now },
+    });
 
-return NextResponse.json({
-  success: true,
-  completed: completedCount,
-  message:
-    "Completed investments processed successfully",
-});
+    let completedCount = 0;
+    const errors: string[] = [];
 
+    for (const inv of investments) {
+      try {
+        const profitAmount = inv.amount * (inv.profit / 100);
+        const totalReturn = inv.amount + profitAmount;
 
-} catch (error) {
-console.error(
-"INVEST COMPLETE ERROR:",
-error
-);
+        // ✅ Check if user exists before updating
+        const userExists = await User.findById(inv.userId);
+        if (!userExists) {
+          errors.push(`User ${inv.userId} not found for investment ${inv._id}`);
+          continue;
+        }
 
-return NextResponse.json(
-  {
-    success: false,
-    error: "Failed",
-  },
-  {
-    status: 500,
+        // ✅ Ensure lockedBalance doesn't go negative
+        const currentLockedBalance = userExists.lockedBalance || 0;
+        const newLockedBalance = Math.max(0, currentLockedBalance - inv.amount);
+
+        await User.findByIdAndUpdate(
+          inv.userId,
+          {
+            $inc: {
+              balance: totalReturn,
+              // ✅ Use Math.max to prevent negative lockedBalance
+            },
+            $set: {
+              lockedBalance: newLockedBalance,
+            },
+          }
+        );
+
+        inv.status = "completed";
+        await inv.save();
+
+        completedCount++;
+
+        // ✅ Create notification for user (optional)
+        // await Notification.create({
+        //   userId: inv.userId,
+        //   type: "investment",
+        //   message: `Your investment of $${inv.amount} has been completed. You earned $${profitAmount.toFixed(2)} profit.`,
+        // });
+
+      } catch (error) {
+        console.error(`Error processing investment ${inv._id}:`, error);
+        errors.push(`Failed to process investment ${inv._id}`);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      completed: completedCount,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `Processed ${completedCount} completed investments${errors.length > 0 ? ` with ${errors.length} errors` : ''}`,
+    });
+
+  } catch (error) {
+    console.error("INVEST COMPLETE ERROR:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed",
+      },
+      {
+        status: 500,
+      }
+    );
   }
-);
-
-
-}
 }
