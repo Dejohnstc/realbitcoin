@@ -76,17 +76,17 @@ class PriceSimulator {
     const drift = this.trend + (this.meanReversion * (this.mean - this.price)) / this.price;
     const noise = vol * Math.sqrt(dt) * this.randomNormal();
     const change = drift * dt + noise;
-    
+
     let newPrice = this.price * (1 + change);
-    
+
     const maxMove = 0.08;
     if (Math.abs(change) > maxMove) {
       newPrice = this.price * (1 + Math.sign(change) * maxMove);
     }
-    
+
     newPrice = Math.max(newPrice, 0.01);
     this.mean = this.mean * (1 - 0.00005 * dt) + newPrice * 0.00005 * dt;
-    
+
     this.price = newPrice;
     return this.price;
   }
@@ -132,23 +132,23 @@ function LiveCandleChart({
     if (candlesRef.current.length === 0) {
       let seed = value || 1000;
       const tempSim = new PriceSimulator(seed);
-      
+
       for (let i = 0; i < MAX_CANDLES; i++) {
         const open = seed;
         let close = seed;
         let high = seed;
         let low = seed;
-        
+
         for (let t = 0; t < 60; t++) {
           close = tempSim.nextPrice();
           high = Math.max(high, close);
           low = Math.min(low, close);
         }
-        
+
         candlesRef.current.push({ open, high, low, close });
         seed = close;
       }
-      
+
       const lastPrice = candlesRef.current[candlesRef.current.length - 1].close;
       currentRef.current = { open: lastPrice, high: lastPrice, low: lastPrice, close: lastPrice };
       peakPriceRef.current = lastPrice;
@@ -258,7 +258,7 @@ function LiveCandleChart({
       if (active && ts - lastTickRef.current >= TICK_MS) {
         lastTickRef.current = ts;
         const newPrice = simulator.price;
-        
+
         if (newPrice > peakPriceRef.current) {
           peakPriceRef.current = newPrice;
         }
@@ -271,7 +271,7 @@ function LiveCandleChart({
         }
 
         tickCountRef.current++;
-        
+
         if (tickCountRef.current >= TICKS_PER_CANDLE && cur) {
           candlesRef.current.push({ ...cur });
           if (candlesRef.current.length > MAX_CANDLES) {
@@ -324,7 +324,7 @@ export default function PortfolioPage() {
   const frameRef = useRef<number | null>(null);
   const loopInstanceIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
-  
+
   // Real-time DOM references
   const domBalanceRef = useRef<HTMLHeadingElement | null>(null);
   const domChartBalanceRef = useRef<HTMLHeadingElement | null>(null);
@@ -434,7 +434,7 @@ export default function PortfolioPage() {
   // Fix: Explicitly track loop IDs to eliminate ghost execution lines
   useEffect(() => {
     if (loading || !simulatorRef.current) return;
-    
+
     if (!earning || earning.status !== "active") {
       const t = setTimeout(() => {
         if (domBalanceRef.current) domBalanceRef.current.innerText = formatUSD(realTotal);
@@ -467,16 +467,21 @@ export default function PortfolioPage() {
         const newPrice = simulator.nextPrice();
         const volatility = 0.0008;
         const movement = (newPrice / 1000) * volatility;
-        
+
         let trend = 0;
         if (Math.random() < 0.001) {
           trend = (Math.random() - 0.5) * 0.005;
         }
-        
-        const reversion = (realTotal - current) * 0.0005;
+
+        // FIX: reversion must be a FRACTION of the deviation, not raw dollars.
+        // Previously: (realTotal - current) * 0.0005 produced a dollar value that
+        // was then treated as a percentage change, so a ~$100 drift = 5%/tick and
+        // the balance oscillated wildly (the $885.88 / +16% bug). Dividing by
+        // realTotal makes the pull proportional and the value settles smoothly.
+        const reversion = ((realTotal - current) / realTotal) * 0.0005;
         const change = movement + trend + reversion;
         const nextValue = Math.max(current * (1 + change), 0.01);
-        
+
         const maxDeviation = 0.15;
         const deviation = (nextValue - realTotal) / realTotal;
         let finalValue = nextValue;
@@ -485,13 +490,13 @@ export default function PortfolioPage() {
         } else if (deviation < -maxDeviation * 0.5) {
           finalValue = realTotal * (1 - maxDeviation * 0.5);
         }
-        
+
         current = finalValue;
-        
+
         if (current > maxValue) maxValue = current;
         const drawdown = (maxValue - current) / maxValue;
         if (drawdown > maxDrawdown) setMaxDrawdown(drawdown);
-        
+
         const changeAmount = current - previous;
         const changePercent = previous > 0 ? (changeAmount / previous) * 100 : 0;
         const isUpNow = current >= previous;
@@ -662,7 +667,7 @@ export default function PortfolioPage() {
             <p className="text-yellow-400 text-xs uppercase tracking-wide">Active Trading Session</p>
             <p className="text-white text-sm mt-1">Ends in {countdown}</p>
             <div className="mt-2 bg-[#0B0F19] rounded-full h-1.5 overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-yellow-400 transition-all duration-500"
                 style={{ width: `${Math.min(earning.progress || 0, 100)}%` }}
               />
@@ -730,7 +735,7 @@ export default function PortfolioPage() {
             <span className="text-green-400 text-xs">LIVE</span>
           </div>
         </div>
-        
+
         {simulatorRef.current && (
           <LiveCandleChart
             value={realTotal}
