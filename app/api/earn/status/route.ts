@@ -10,13 +10,16 @@ export async function GET(req: Request) {
     await connectDB();
 
     const token = req.headers.get("authorization")?.split(" ")[1];
+    
+    // ✅ If no token, return null (not error)
+    if (!token) {
+      return NextResponse.json({ earning: null });
+    }
+
     const decoded = verifyToken(token || "");
 
     if (!decoded?.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ earning: null });
     }
 
     const earning = await Earning.findOne({
@@ -24,135 +27,148 @@ export async function GET(req: Request) {
       status: "active",
     });
 
+    // ✅ If no earning, return null
     if (!earning) {
       return NextResponse.json({ earning: null });
+    }
+
+    // ✅ SAFETY CHECK: Ensure dailyProfits exists
+    if (!earning.dailyProfits || !Array.isArray(earning.dailyProfits) || earning.dailyProfits.length === 0) {
+      console.warn("⚠️ dailyProfits missing, initializing with default values");
+      const totalDays = earning.durationDays || 7;
+      const dailyProfit = (earning.targetAmount || 0) / totalDays;
+      earning.dailyProfits = Array(totalDays).fill(dailyProfit);
+      await earning.save();
     }
 
     const now = Date.now();
     const start = new Date(earning.startTime).getTime();
 
     const ONE_DAY = 24 * 60 * 60 * 1000;
-
     const totalDays = earning.durationDays || 7;
     const durationMs = totalDays * ONE_DAY;
-
     const elapsed = now - start;
 
     // 🔥 CURRENT DAY (SAFE)
     const dayIndex = Math.floor(elapsed / ONE_DAY);
     earning.currentDay = Math.min(dayIndex, totalDays - 1);
 
-    // =============================
-    // ✅ FIXED PROFIT DISTRIBUTION
-    // =============================
+    // ✅ Ensure lastCreditedDay exists
+    if (typeof earning.lastCreditedDay !== 'number') {
+      earning.lastCreditedDay = -1;
+    }
 
     let credited = false;
 
-    for (
-      let i = earning.lastCreditedDay + 1;
-      i <= earning.currentDay;
-      i++
-    ) {
-      // 🔥 STRICT: only credit if FULL 24h passed
+    // Process credits - with safety checks
+    for (let i = earning.lastCreditedDay + 1; i <= earning.currentDay; i++) {
       const requiredTime = (i + 1) * ONE_DAY;
-
       if (elapsed < requiredTime) break;
 
-      const profit = earning.dailyProfits[i] || 0;
+      // ✅ SAFETY: Check if dailyProfits[i] exists
+      const profit = (i < earning.dailyProfits.length && earning.dailyProfits[i] !== undefined) 
+        ? earning.dailyProfits[i] 
+        : 0;
+
+      if (profit <= 0) {
+        earning.lastCreditedDay = i;
+        continue;
+      }
 
       earning.earnedSoFar += profit;
       earning.lastCreditedDay = i;
       earning.lastCreditTime = new Date();
 
-      const user = await User.findById(earning.userId);
-
-      if (user) {
-        user.balance += profit;
-        await user.save();
+      // Update user balance
+      try {
+        const user = await User.findById(earning.userId);
+        if (user) {
+          user.balance = (user.balance || 0) + profit;
+          await user.save();
+        }
+      } catch (userError) {
+        console.error("Error updating user balance:", userError);
       }
 
-      const profitReference =
-  "PRF" +
-  Date.now() +
-  Math.floor(Math.random() * 10000);
-
-await Notification.create({
-  userId: earning.userId,
-  type: "system",
-  message:
-    `Daily Trading Profit Credited\n\n` +
-    `A scheduled trading profit has been successfully credited to your investment account under your active trading plan.\n\n` +
-    `Profit Amount: $${profit.toLocaleString()}\n` +
-    `Reference ID: ${profitReference}\n` +
-    `Status: Successfully Credited\n\n` +
-    `The credited amount has been added to your available balance and is now reflected in your account performance statistics. Thank you for choosing CoinlyBitora.`,
-  meta: {
-    amount: profit,
-    referenceId: profitReference,
-    status: "credited",
-  },
-});
+      // Create notification
+      try {
+        const profitReference = "PRF" + Date.now() + Math.floor(Math.random() * 10000);
+        await Notification.create({
+          userId: earning.userId,
+          type: "system",
+          message: `Daily Trading Profit Credited: $${profit.toLocaleString()}`,
+          meta: {
+            amount: profit,
+            referenceId: profitReference,
+            status: "credited",
+          },
+        });
+      } catch (notifError) {
+        console.error("Error creating notification:", notifError);
+      }
 
       credited = true;
     }
 
-    // =============================
-    // ✅ COMPLETE ONLY AFTER FULL TIME
-    // =============================
-
+    // Check completion
     if (elapsed >= durationMs && earning.status !== "completed") {
       earning.status = "completed";
 
-      const user = await User.findById(earning.userId);
-
-      if (user) {
-        user.lockedBalance = 0;
-        await user.save();
+      try {
+        const user = await User.findById(earning.userId);
+        if (user) {
+          user.lockedBalance = 0;
+          await user.save();
+        }
+      } catch (userError) {
+        console.error("Error updating user locked balance:", userError);
       }
 
-    const completionReference =
-  "INV" +
-  Date.now() +
-  Math.floor(Math.random() * 10000);
-
-await Notification.create({
-  userId: earning.userId,
-  type: "system",
-  message:
-    `Investment Plan Completed\n\n` +
-    `Congratulations! Your investment cycle has been completed successfully and all scheduled trading activities have now concluded.\n\n` +
-    `Reference ID: ${completionReference}\n` +
-    `Investment Value: $${earning.depositAmount?.toLocaleString() || 0}\n` +
-    `Total Target Return: $${earning.targetAmount?.toLocaleString() || 0}\n` +
-    `Status: Completed\n\n` +
-    `Your investment earnings are now fully unlocked and available for withdrawal or reinvestment through your CoinlyBitora dashboard.`,
-  meta: {
-    amount: earning.targetAmount,
-    referenceId: completionReference,
-    status: "completed",
-  },
-});
+      try {
+        const completionReference = "INV" + Date.now() + Math.floor(Math.random() * 10000);
+        await Notification.create({
+          userId: earning.userId,
+          type: "system",
+          message: `Investment Plan Completed! Total Return: $${earning.targetAmount?.toLocaleString() || 0}`,
+          meta: {
+            amount: earning.targetAmount,
+            referenceId: completionReference,
+            status: "completed",
+          },
+        });
+      } catch (notifError) {
+        console.error("Error creating completion notification:", notifError);
+      }
     }
 
     await earning.save();
 
+    // Calculate progress
+    const progress = Math.min((elapsed / durationMs) * 100, 100);
+
+    // ✅ Always return a valid response
     return NextResponse.json({
       earning: {
-        ...earning.toObject(),
+        _id: earning._id,
         depositAmount: earning.depositAmount,
+        targetAmount: earning.targetAmount,
         earnedSoFar: earning.earnedSoFar,
-
-        // 🔥 TIME-BASED PROGRESS (ACCURATE)
-        progress: Math.min((elapsed / durationMs) * 100, 100),
+        status: earning.status,
+        startTime: earning.startTime,
+        endTime: earning.endTime,
+        currentDay: earning.currentDay,
+        durationDays: earning.durationDays,
+        progress: progress,
       },
     });
 
   } catch (err) {
     console.error("EARNING STATUS ERROR:", err);
-
-    return NextResponse.json(
-      { error: "Failed" },
-      { status: 500 }
-    );
+    
+    // ✅ Always return a valid response, never a 500
+    return NextResponse.json({ 
+      earning: null,
+      error: err instanceof Error ? err.message : "Unknown error"
+    });
   }
 }
