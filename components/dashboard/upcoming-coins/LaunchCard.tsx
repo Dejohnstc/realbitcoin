@@ -90,7 +90,7 @@ export default function LaunchCard({
         {coin.allowReservation && (
           <button
             onClick={() =>
-              router.push(`/dashboard/upcoming-coin/${coin.slug}`)
+              router.push(`/dashboard/upcoming-coins/${coin.slug}`)
             }
             className="mt-8 w-full rounded-xl bg-cyan-500 py-3 font-semibold text-black transition hover:bg-cyan-400"
           >
