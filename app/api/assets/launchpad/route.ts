@@ -13,10 +13,7 @@ export async function GET(req: NextRequest) {
 
     if (!authHeader) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Unauthorized",
-        },
+        { success: false },
         { status: 401 }
       );
     }
@@ -27,27 +24,20 @@ export async function GET(req: NextRequest) {
 
     if (!decoded?.userId) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid token",
-        },
+        { success: false },
         { status: 401 }
       );
     }
 
-   const reservations = (
-  await CoinReservation.find({
-    userId: decoded.userId,
-  })
-    .populate({
-      path: "coinId",
-      select:
-        "name symbol logo listingDate claimEnabled currentPrice",
+    const reservations = await CoinReservation.find({
+      userId: decoded.userId,
     })
-    .sort({
-      createdAt: -1,
-    })
-).filter((item) => item.coinId);
+      .populate(
+        "coinId",
+        "name symbol logo listingDate currentPrice claimEnabled"
+      )
+      .sort({ createdAt: -1 })
+      .lean();
 
     return NextResponse.json({
       success: true,
@@ -55,12 +45,12 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("LAUNCHPAD ASSETS ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "Unable to load reservations.",
+        message: "Unable to load launchpad holdings.",
       },
       {
         status: 500,

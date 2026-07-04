@@ -67,12 +67,14 @@ export async function GET(req: NextRequest) {
         date: item.createdAt,
       })),
 
-      ...reservations.map((item) => ({
-        type: "launchpad" as const,
-        title: item.coinId.name,
-        amount: item.totalPaid,
-        date: item.createdAt,
-      })),
+      ...reservations
+  .filter((item) => item.coinId)
+  .map((item) => ({
+    type: "launchpad" as const,
+    title: item.coinId.name,
+    amount: item.totalPaid,
+    date: new Date(item.createdAt),
+  })),
     ].sort(
       (a, b) =>
         b.date.getTime() - a.date.getTime()
@@ -83,7 +85,7 @@ export async function GET(req: NextRequest) {
       activity,
     });
   } catch (error) {
-    console.error(error);
+    console.error("ACTIVITY API ERROR:", error);
 
     return NextResponse.json(
       {
