@@ -67,43 +67,43 @@ function handleCoinsChange(value: string) {
  
 
   const validation = useMemo(() => {
-    const qty = Number(coins);
-    const total = Number(usd);
+  const qty = Number(coins);
+  const total = Number(usd);
 
-    if (!qty) {
-      return "";
-    }
-
-    if (qty < minPurchase) {
-      return `Minimum purchase is ${minPurchase.toLocaleString()} ${symbol}`;
-    }
-
-    if (qty > maxPurchase) {
-      return `Maximum purchase is ${maxPurchase.toLocaleString()} ${symbol}`;
-    }
-
-    if (qty > remainingSupply) {
-      return "Not enough remaining supply.";
-    }
-
-    if (total > balance) {
-      return "Insufficient balance. Please deposit funds.";
-    }
-
+  if (!qty || !total) {
     return "";
-  }, [
-    coins,
-    usd,
-    minPurchase,
-    maxPurchase,
-    remainingSupply,
-    balance,
-    symbol,
-  ]);
+  }
 
+  // Minimum investment (USD)
+  if (total < minPurchase) {
+    return `Minimum investment is $${minPurchase.toLocaleString()}`;
+  }
+
+  // Maximum investment (USD)
+  if (total > maxPurchase) {
+    return `Maximum investment is $${maxPurchase.toLocaleString()}`;
+  }
+
+  if (qty > remainingSupply) {
+    return "Not enough remaining supply.";
+  }
+
+  if (total > balance) {
+    return "Insufficient balance. Please deposit funds.";
+  }
+
+  return "";
+}, [
+  coins,
+  usd,
+  minPurchase,
+  maxPurchase,
+  remainingSupply,
+  balance,
+]);
   async function reserveAllocation() {
   try {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("user_token");
 
     if (!token) {
       alert("Please login.");

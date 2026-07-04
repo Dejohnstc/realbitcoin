@@ -17,15 +17,15 @@ export async function POST(req: NextRequest) {
     session.startTransaction();
 
     const authHeader = req.headers.get("authorization");
-console.log("AUTH HEADER:", authHeader);
+
     if (!authHeader) {
       throw new Error("Unauthorized");
     }
 
     const token = authHeader.split(" ")[1];
-console.log("TOKEN:", token);
+
     const decoded = verifyToken(token);
-console.log("DECODED:", decoded);
+
     if (!decoded?.userId) {
       throw new Error("Invalid token");
     }
@@ -52,15 +52,28 @@ console.log("DECODED:", decoded);
       throw new Error("Reservations are currently closed.");
     }
 
-    if (
-      coinsPurchased < coin.minPurchase ||
-      coinsPurchased > coin.maxPurchase
-    ) {
+    // Must purchase at least 1 coin
+    if (coinsPurchased <= 0) {
+      throw new Error("Invalid coin quantity.");
+    }
+
+    // Calculate total investment
+    const totalCost = coinsPurchased * coin.salePrice;
+
+    // Validate investment amount (USD)
+    if (totalCost < coin.minPurchase) {
       throw new Error(
-        `Purchase must be between ${coin.minPurchase} and ${coin.maxPurchase} ${coin.symbol}.`
+        `Minimum investment is $${coin.minPurchase.toLocaleString()}.`
       );
     }
 
+    if (totalCost > coin.maxPurchase) {
+      throw new Error(
+        `Maximum investment is $${coin.maxPurchase.toLocaleString()}.`
+      );
+    }
+
+    // Validate remaining supply
     const remainingSupply =
       coin.totalSupply - coin.reservedSupply;
 
@@ -68,19 +81,17 @@ console.log("DECODED:", decoded);
       throw new Error("Insufficient remaining supply.");
     }
 
-    const totalCost =
-      coinsPurchased * coin.salePrice;
-
+    // Validate balance
     if (user.balance < totalCost) {
       throw new Error("Insufficient balance.");
     }
 
-    const existing =
-      await CoinReservation.findOne({
-        userId: user._id,
-        coinId: coin._id,
-        status: "reserved",
-      }).session(session);
+    // Prevent duplicate reservations
+    const existing = await CoinReservation.findOne({
+      userId: user._id,
+      coinId: coin._id,
+      status: "reserved",
+    }).session(session);
 
     if (existing) {
       throw new Error(
@@ -88,16 +99,19 @@ console.log("DECODED:", decoded);
       );
     }
 
+    // Lock user's funds
     user.balance -= totalCost;
     user.lockedBalance += totalCost;
 
     await user.save({ session });
 
+    // Reserve supply
     coin.reservedSupply += coinsPurchased;
     coin.reservations += 1;
 
     await coin.save({ session });
 
+    // Create reservation
     await CoinReservation.create(
       [
         {
@@ -133,22 +147,23 @@ console.log("DECODED:", decoded);
   } catch (error) {
     await session.abortTransaction();
 
-   console.error("RESERVE ERROR:", error);
+    console.error("RESERVE ERROR:", error);
 
-const message =
-  error instanceof Error
-    ? error.message
-    : "Reservation failed.";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Reservation failed.";
 
-return NextResponse.json(
-  {
-    success: false,
-    message,
-  },
-  {
-    status: 400,
-  }
-);
+    return NextResponse.json(
+      {
+        success: false,
+        message,
+      },
+      {
+        status: 400,
+      }
+    );
+
   } finally {
     session.endSession();
   }
