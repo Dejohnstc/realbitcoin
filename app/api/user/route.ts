@@ -20,7 +20,7 @@ export async function GET(req: Request): Promise<NextResponse> {
 
     const decoded = verifyToken(token);
 
-    if (!decoded || !decoded.userId) {
+    if (!decoded?.userId) {
       return NextResponse.json(
         { error: "Invalid token" },
         { status: 401 }
@@ -28,7 +28,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     }
 
     const user = await User.findById(decoded.userId).select(
-      "_id email balance role name country profileImage notifications isVerified createdAt"
+      "_id email balance lockedBalance role name country phone profileImage notifications isVerified createdAt"
     );
 
     if (!user) {
@@ -38,28 +38,33 @@ export async function GET(req: Request): Promise<NextResponse> {
       );
     }
 
-    // ✅ FIXED RESPONSE STRUCTURE
     return NextResponse.json({
+      success: true,
       user: {
         _id: user._id.toString(),
         email: user.email,
         balance: user.balance ?? 0,
+        lockedBalance: user.lockedBalance ?? 0,
         role: user.role,
-        name: user.name || "",
-        country: user.country || "",
-        profileImage: user.profileImage || "",
-        notifications: user.notifications || {},
+        name: user.name ?? "",
+        country: user.country ?? "",
+        phone: user.phone ?? "",
+        profileImage: user.profileImage ?? "",
+        notifications: user.notifications ?? {},
         isVerified: user.isVerified,
         createdAt: user.createdAt,
       },
     });
-
   } catch (error) {
     console.error("USER API ERROR:", error);
 
     return NextResponse.json(
-      { error: "Server error" },
-      { status: 500 }
+      {
+        error: "Server error",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }

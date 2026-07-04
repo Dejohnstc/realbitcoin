@@ -96,20 +96,30 @@ const [balance, setBalance] = useState(0);
     );
   }
 async function loadUser() {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("user_token");
 
-  if (!token) return;
+  if (!token) {
+    console.log("❌ No user token found");
+    return;
+  }
 
-  const res = await fetch("/api/user", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  try {
+    const res = await fetch("/api/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.user) {
-    setBalance(data.user.balance);
+    console.log("USER API:", data);
+
+    if (data.user) {
+      setBalance(data.user.balance ?? 0);
+    }
+  } catch (error) {
+    console.error("Failed to load user:", error);
   }
 }
   return (

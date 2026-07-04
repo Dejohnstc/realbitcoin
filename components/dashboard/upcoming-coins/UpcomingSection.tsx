@@ -7,6 +7,7 @@ interface Coin {
   _id: string;
   name: string;
   symbol: string;
+   slug: string;
   logo: string;
   listingPrice: number;
   listingDate: string;

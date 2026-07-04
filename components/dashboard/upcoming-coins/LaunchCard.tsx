@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import Countdown from "./Countdown";
+import { useRouter } from "next/navigation";
 
 interface LaunchCardProps {
   coin: {
     _id: string;
     name: string;
     symbol: string;
+    slug: string;
     logo: string;
     listingPrice: number;
     listingDate: string;
@@ -21,6 +23,8 @@ interface LaunchCardProps {
 export default function LaunchCard({
   coin,
 }: LaunchCardProps) {
+  const router = useRouter();
+
   return (
     <div
       className={`relative overflow-hidden rounded-3xl border transition-all duration-300 hover:scale-[1.02] ${
@@ -36,9 +40,7 @@ export default function LaunchCard({
       )}
 
       <div className="p-6">
-
         <div className="flex items-center gap-4">
-
           {coin.logo ? (
             <Image
               src={coin.logo}
@@ -62,11 +64,9 @@ export default function LaunchCard({
               {coin.symbol}
             </p>
           </div>
-
         </div>
 
         <div className="mt-6 space-y-3">
-
           <Row
             label="Network"
             value={coin.network || "N/A"}
@@ -81,7 +81,6 @@ export default function LaunchCard({
             label="Status"
             value={coin.status}
           />
-
         </div>
 
         <div className="mt-6">
@@ -90,6 +89,9 @@ export default function LaunchCard({
 
         {coin.allowReservation && (
           <button
+            onClick={() =>
+              router.push(`/launchpad/${coin.slug}`)
+            }
             className="mt-8 w-full rounded-xl bg-cyan-500 py-3 font-semibold text-black transition hover:bg-cyan-400"
           >
             Reserve Spot
