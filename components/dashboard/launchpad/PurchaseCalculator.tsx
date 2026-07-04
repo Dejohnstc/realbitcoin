@@ -110,8 +110,9 @@ function handleCoinsChange(value: string) {
       return;
     }
 
-    const res = await fetch(
-      "/api/launchpad/reserve",
+    
+      const res = await fetch(
+  "/api/upcoming-coins/reserve",
       {
         method: "POST",
 
@@ -247,12 +248,17 @@ function handleCoinsChange(value: string) {
       )}
 
       <button
-        disabled={!!validation}
-       onClick={reserveAllocation}
-        className="mt-6 w-full rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 py-4 text-black font-bold"
-      >
-        Reserve Allocation
-      </button>
+  type="button"
+  disabled={!!validation}
+  onClick={() => {
+    console.log("Reserve clicked");
+    alert("Reserve clicked");
+    reserveAllocation();
+  }}
+  className="mt-6 w-full rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 py-4 text-black font-bold"
+>
+  Reserve Allocation
+</button>
 
     </div>
   );
