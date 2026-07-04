@@ -10,7 +10,9 @@ import {
   Gift,
   TrendingUp, // 🔥 NEW ICON
 } from "lucide-react";
-
+import {
+  Coins,
+} from "lucide-react";
 export default function AdminPage() {
   const router = useRouter();
   const checkedRef = useRef(false);
@@ -144,7 +146,19 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
-
+{/* UPCOMING COINS */}
+<div
+  onClick={() => router.push("/admin/upcoming-coins")}
+  className="p-5 bg-gradient-to-r from-[#131A2A] to-[#1A2235] rounded-xl cursor-pointer hover:scale-[1.02] transition flex items-center gap-4 border border-cyan-400/20"
+>
+  <Coins className="text-cyan-400" />
+  <div>
+    <h2 className="font-semibold">Upcoming Listings</h2>
+    <p className="text-sm text-gray-400">
+      Manage upcoming coin launches
+    </p>
+  </div>
+</div>
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import LaunchpadHoldings from "@/components/dashboard/assets/LaunchpadHoldings";
+import RecentActivity from "@/components/dashboard/assets/RecentActivity";
 
 interface User {
   name: string;
@@ -23,11 +25,31 @@ interface Market {
   current_price: number;
   price_change_percentage_24h: number;
 }
+interface AssetSummary {
+  availableBalance: number;
+  lockedBalance: number;
+  launchpadReserved: number;
+  activeInvestments: number;
+  reservationCount: number;
+  totalNetWorth: number;
+}
+interface Activity {
+  type: string;
+  title: string;
+  amount: number;
+  date: string;
+}
+
 
 export default function AssetsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
+const [reservations, setReservations] = useState([]);
+const [activity, setActivity] = useState<Activity[]>([]);
+const [summary, setSummary] =
+  useState<AssetSummary | null>(null);
+  
   const [hideBalance, setHideBalance] = useState(false);
   const [flash, setFlash] = useState(false);
 const router = useRouter();
@@ -52,19 +74,64 @@ useEffect(() => {
       try {
         const token = localStorage.getItem("user_token");
 
-        const [userRes, marketRes] = await Promise.all([
-          fetch("/api/user/me", {
-            headers: { Authorization: `Bearer ${token}` },
-            cache: "no-store",
-          }),
-          fetch("/api/markets", { cache: "no-store" }),
-        ]);
+        const [
+  userRes,
+  marketRes,
+  reservationRes,
+  summaryRes,
+  activityRes,
+] = await Promise.all([
+  fetch("/api/user/me", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  }),
 
-        const userData = await userRes.json();
-        const marketData = await marketRes.json();
+  fetch("/api/markets", {
+    cache: "no-store",
+  }),
 
+  fetch("/api/assets/launchpad", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  }),
+
+  fetch("/api/assets/summary", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  }),
+
+  fetch("/api/assets/activity", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  }),
+]);
+  
+
+      const userData = await userRes.json();
+
+const marketData = await marketRes.json();
+
+const summaryData =
+  await summaryRes.json();
+const reservationData =
+  await reservationRes.json();
+  const activityData =
+  await activityRes.json();
         setUser(userData.user);
         setMarkets(marketData.markets || []);
+        setSummary(summaryData.summary);
+        setReservations(
+  reservationData.reservations || []
+);
+setActivity(activityData.activity);
       } catch (err) {
         console.log("Load error", err);
       } finally {
@@ -92,9 +159,17 @@ useEffect(() => {
   }
 
   // 🔥 FIXED LOGIC (MATCH PORTFOLIO)
-  const available = user.balance || 0;
-  const locked = user.lockedBalance || 0;
-  const totalUSD = available + locked;
+ const available =
+  summary?.availableBalance ?? 0;
+
+const locked =
+  summary?.lockedBalance ?? 0;
+
+const totalUSD =
+  summary?.totalNetWorth ?? 0;
+
+const launchpadReserved =
+  summary?.launchpadReserved ?? 0;
 
  const btcPrice =
 markets.find((m) =>
@@ -180,10 +255,23 @@ cursor-pointer
               {hideBalance ? "****" : `${locked.toFixed(2)} USD`}
             </p>
           </div>
+          <div>
+  <p className="text-gray-400">
+    Launchpad
+  </p>
+
+  <p>
+    {hideBalance
+      ? "****"
+      : `${launchpadReserved.toFixed(
+          2
+        )} USD`}
+  </p>
+</div>
           <div className="grid grid-cols-2 gap-3 mt-5"> <div className="bg-[#1A2235] p-3 rounded-xl"> <p className="text-xs text-gray-400"> Active Investments </p>
 
 <p className="text-lg font-bold text-yellow-400">
-  3
+  {summary?.activeInvestments ?? 0}
 </p>
 
 </div>
@@ -317,7 +405,10 @@ cursor-pointer
 )}
 
 </div>
-
+<LaunchpadHoldings
+  items={reservations}
+/>
+<RecentActivity items={activity} />
     </div>
   );
 }

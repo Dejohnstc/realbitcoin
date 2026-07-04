@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import UpcomingSection from "@/components/dashboard/upcoming-coins/UpcomingSection";
+import FeaturedLaunch from "@/components/dashboard/upcoming-coins/FeaturedLaunch";
 import { useRouter } from "next/navigation";
 import {
   Eye,
@@ -298,6 +300,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      {/* UPCOMING COIN LISTINGS */}
+
+<FeaturedLaunch />
+
+<UpcomingSection />
 
       {/* STAT CHIPS */}
       <div className="grid grid-cols-2 gap-3 mb-2">
