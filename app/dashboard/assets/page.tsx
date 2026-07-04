@@ -47,6 +47,22 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
 const [reservations, setReservations] = useState([]);
 const [activity, setActivity] = useState<Activity[]>([]);
+interface PortfolioAsset {
+  _id: string;
+  assetName: string;
+  assetSymbol: string;
+  logo: string;
+  amount: number;
+  currentPrice: number;
+  averageBuyPrice: number;
+  value: number;
+  profit: number;
+  profitPercent: number;
+  isLaunchToken: boolean;
+}
+
+const [portfolio, setPortfolio] =
+  useState<PortfolioAsset[]>([]);
 const [summary, setSummary] =
   useState<AssetSummary | null>(null);
   
@@ -73,13 +89,13 @@ useEffect(() => {
     const load = async () => {
       try {
         const token = localStorage.getItem("user_token");
-
-        const [
+const [
   userRes,
   marketRes,
   reservationRes,
   summaryRes,
   activityRes,
+  portfolioRes,
 ] = await Promise.all([
   fetch("/api/user/me", {
     headers: {
@@ -104,6 +120,7 @@ useEffect(() => {
       Authorization: `Bearer ${token}`,
     },
     cache: "no-store",
+    
   }),
 
   fetch("/api/assets/activity", {
@@ -112,6 +129,12 @@ useEffect(() => {
     },
     cache: "no-store",
   }),
+  fetch("/api/assets/portfolio", {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+  cache: "no-store",
+}),
 ]);
   
 
@@ -123,6 +146,8 @@ const summaryData =
   await summaryRes.json();
 const reservationData =
   await reservationRes.json();
+  const portfolioData =
+  await portfolioRes.json();
   const activityData =
   await activityRes.json();
         setUser(userData.user);
@@ -130,6 +155,9 @@ const reservationData =
         setSummary(summaryData.summary);
         setReservations(
   reservationData.reservations || []
+);
+setPortfolio(
+  portfolioData.portfolio || []
 );
 setActivity(activityData.activity);
       } catch (err) {
@@ -337,73 +365,64 @@ cursor-pointer
 
 <span className="text-gray-400 text-sm"> {markets.length} Assets </span> </div>
       {/* ASSETS */}
-     <div className="space-y-4"> {markets.length === 0 ? ( <div className="bg-[#131A2A] p-6 rounded-xl text-center text-gray-400"> No market data available </div> ) : ( markets.slice(0, 6).map((m) => { const symbolKey = m.symbol?.toLowerCase().split("/")[0];
+    <div className="space-y-4">
+  {portfolio.length === 0 ? (
+    <div className="bg-[#131A2A] p-6 rounded-xl text-center text-gray-400">
+      No crypto assets yet
+    </div>
+  ) : (
+    portfolio.map((asset) => (
+      <div
+        key={asset._id}
+        className="flex justify-between items-center bg-[#131A2A] p-4 rounded-xl hover:bg-[#1A2235] transition-all"
+      >
+        <div className="flex items-center gap-3">
+          <img
+            src={asset.logo}
+            alt={asset.assetSymbol}
+            className="w-8 h-8 rounded-full"
+          />
 
-  return (
-    <div
-      key={m.symbol}
-      className="
-        flex justify-between items-center
-        bg-[#131A2A]
-        p-4
-        rounded-xl
-        hover:bg-[#1A2235]
-        hover:scale-[1.01]
-        transition-all
-        cursor-pointer
-      "
-    >
-      <div className="flex items-center gap-3">
-        <img
-          src={
-            coinIcons[symbolKey] ||
-            coinIcons["btc"]
-          }
-          alt={m.symbol}
-          className="w-7 h-7"
-        />
+          <div>
+            <p className="font-semibold">
+              {asset.assetSymbol}
 
-        <div>
-          <p className="font-semibold">
-            {m.symbol.toUpperCase()}
+              {asset.isLaunchToken && (
+                <span className="ml-2 text-xs text-yellow-400">
+                  Launchpad
+                </span>
+              )}
+            </p>
+
+            <p className="text-xs text-gray-400">
+              {asset.amount.toLocaleString()} {asset.assetSymbol}
+            </p>
+          </div>
+        </div>
+
+        <div className="text-right">
+          <p>
+            {hideBalance
+              ? "****"
+              : `$${asset.value.toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                })}`}
           </p>
 
           <p
             className={`text-xs ${
-              m.price_change_percentage_24h > 0
+              asset.profit >= 0
                 ? "text-green-400"
                 : "text-red-400"
             }`}
           >
-            {m.price_change_percentage_24h.toFixed(2)}%
+            {asset.profit >= 0 ? "+" : ""}
+            {asset.profitPercent.toFixed(2)}%
           </p>
         </div>
       </div>
-
-      <div className="text-right">
-        <p>
-          {hideBalance
-            ? "****"
-            : m.current_price
-            ? (
-                totalUSD /
-                m.current_price
-              ).toFixed(6)
-            : "0.000000"}
-        </p>
-
-        <p className="text-xs text-gray-400">
-          $
-          {m.current_price?.toLocaleString() ||
-            "0.00"}
-        </p>
-      </div>
-    </div>
-  );
-})
-
-)}
-
+    ))
+  )}
 </div>
 <LaunchpadHoldings
   items={reservations}

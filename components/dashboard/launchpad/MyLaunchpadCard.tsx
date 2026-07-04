@@ -33,12 +33,21 @@ export default function MyLaunchpadCard({
   const coin = reservation.coinId;
 
   const [loading, setLoading] = useState(false);
+  const [claimed, setClaimed] = useState(
+    reservation.claimed
+  );
 
   async function claimTokens() {
-    setLoading(true);
-
     try {
-      const token = localStorage.getItem("user_token");
+      setLoading(true);
+
+      const token =
+        localStorage.getItem("user_token");
+
+      if (!token) {
+        alert("Please login.");
+        return;
+      }
 
       const res = await fetch(
         "/api/launchpad/claim",
@@ -56,11 +65,15 @@ export default function MyLaunchpadCard({
 
       const data = await res.json();
 
-      alert(data.message);
-
-      if (data.success) {
-        window.location.reload();
+      if (!res.ok) {
+        alert(data.message);
+        return;
       }
+
+      setClaimed(true);
+
+      alert("Tokens claimed successfully.");
+
     } catch (error) {
       console.error(error);
       alert("Unable to claim tokens.");
@@ -71,7 +84,9 @@ export default function MyLaunchpadCard({
 
   return (
     <div className="rounded-2xl bg-[#131A2A] border border-gray-800 p-6">
+
       <div className="flex gap-4">
+
         <Image
           src={coin.logo}
           alt={coin.name}
@@ -81,6 +96,7 @@ export default function MyLaunchpadCard({
         />
 
         <div>
+
           <h2 className="text-xl font-bold">
             {coin.name}
           </h2>
@@ -88,10 +104,13 @@ export default function MyLaunchpadCard({
           <p className="text-gray-400">
             {coin.symbol}
           </p>
+
         </div>
+
       </div>
 
       <div className="mt-6 space-y-3">
+
         <Row
           label="Reserved"
           value={`${reservation.coinsPurchased.toLocaleString()} ${coin.symbol}`}
@@ -110,8 +129,8 @@ export default function MyLaunchpadCard({
         <Row
           label="Status"
           value={
-            reservation.claimed
-              ? "Claimed"
+            claimed
+              ? "Claimed ✅"
               : reservation.status
           }
         />
@@ -123,7 +142,7 @@ export default function MyLaunchpadCard({
           ).toLocaleDateString()}
         />
 
-        {!reservation.claimed &&
+        {!claimed &&
           coin.claimEnabled && (
             <button
               onClick={claimTokens}
@@ -135,7 +154,9 @@ export default function MyLaunchpadCard({
                 : "Claim Tokens"}
             </button>
           )}
+
       </div>
+
     </div>
   );
 }

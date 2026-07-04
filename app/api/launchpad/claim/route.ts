@@ -7,6 +7,7 @@ import { verifyToken } from "@/lib/auth";
 import CoinReservation from "@/models/CoinReservation";
 import CoinListing from "@/models/CoinListing";
 import Portfolio from "@/models/portfolio";
+import User from "@/models/User";
 
 export async function POST(req: NextRequest) {
   await connectDB();
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { reservationId } = await req.json();
+
+    if (!reservationId) {
+      throw new Error("Reservation ID is required.");
+    }
 
     const reservation = await CoinReservation.findOne({
       _id: reservationId,
@@ -59,15 +64,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const user = await User.findById(decoded.userId).session(session);
+
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    // Release locked funds
+    user.lockedBalance = Math.max(
+      0,
+      user.lockedBalance - reservation.totalPaid
+    );
+
+    await user.save({ session });
+
     const existing = await Portfolio.findOne({
       userId: decoded.userId,
       assetSymbol: coin.symbol,
     }).session(session);
 
     if (existing) {
-      existing.amount += reservation.coinsPurchased;
+      const previousAmount = existing.amount;
+
+      const newAmount =
+        previousAmount + reservation.coinsPurchased;
+
+      existing.averageBuyPrice =
+        (
+          previousAmount * existing.averageBuyPrice +
+          reservation.coinsPurchased *
+            reservation.salePrice
+        ) / newAmount;
+
+      existing.amount = newAmount;
+
       existing.currentPrice = coin.currentPrice;
-      existing.averageBuyPrice = reservation.salePrice;
+
+     existing.logo = coin.logo ?? "";
 
       await existing.save({
         session,
@@ -84,14 +117,11 @@ export async function POST(req: NextRequest) {
 
             logo: coin.logo,
 
-            amount:
-              reservation.coinsPurchased,
+            amount: reservation.coinsPurchased,
 
-            averageBuyPrice:
-              reservation.salePrice,
+            averageBuyPrice: reservation.salePrice,
 
-            currentPrice:
-              coin.currentPrice,
+            currentPrice: coin.currentPrice,
 
             isLaunchToken: true,
           },
@@ -103,7 +133,6 @@ export async function POST(req: NextRequest) {
     }
 
     reservation.claimed = true;
-
     reservation.status = "claimed";
 
     await reservation.save({
@@ -114,8 +143,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message:
-        "Tokens claimed successfully.",
+      message: "Tokens claimed successfully.",
+      portfolioUpdated: true,
+      lockedBalance: user.lockedBalance,
     });
 
   } catch (error) {
@@ -135,6 +165,7 @@ export async function POST(req: NextRequest) {
         status: 400,
       }
     );
+
   } finally {
     session.endSession();
   }
