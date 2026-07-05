@@ -13,7 +13,7 @@ const globalForSocket = globalThis as unknown as {
 export async function GET() {
   try {
     if (!globalForSocket.io) {
-      console.log("🟢 Initializing Socket.io...");
+      
 
       // 🔥 FIX: attach to global server (IMPORTANT)
       const io = new IOServer({
@@ -30,7 +30,7 @@ export async function GET() {
       setIO(io);
 
       io.on("connection", (socket: Socket) => {
-        console.log("🔌 User connected:", socket.id);
+      
 
         let currentUserId: string | null = null;
 

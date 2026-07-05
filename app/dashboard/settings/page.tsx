@@ -60,7 +60,7 @@ export default function SettingsPage() {
 
   if (!ignore) setUser(data);
 } catch {
-  console.log("User load failed");
+  
 }
     })();
 

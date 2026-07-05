@@ -108,7 +108,7 @@ export async function GET(req: Request) {
       { $sort: { lastTime: -1 } },
     ]);
 
-    console.log("✅ USERS WITH FULL DATA:", users.length);
+    
 
     return NextResponse.json({ users });
 

@@ -37,7 +37,7 @@ export default function ReturnsControlPage() {
         setUsers(data.users || []);
       }
     } catch {
-      console.log("Failed to fetch users");
+      
     }
 
     setLoading(false);

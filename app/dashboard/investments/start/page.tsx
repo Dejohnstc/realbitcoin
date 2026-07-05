@@ -82,7 +82,7 @@ function StartInvestmentContent() {
           localStorage.removeItem("currentDepositId");
         }
       } catch {
-        console.log("Status check failed");
+      
       }
     };
 

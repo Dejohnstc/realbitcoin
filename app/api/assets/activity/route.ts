@@ -29,10 +29,8 @@ export async function GET(req: NextRequest) {
 
 void CoinListing;
 
-console.log(
-  "After loading CoinListing:",
-  mongoose.modelNames()
-);
+
+
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -60,21 +58,13 @@ console.log(
       .limit(10);
 
     // ================= DEBUG =================
-    console.log("========== MONGOOSE DEBUG ==========");
-    console.log("Registered models:", mongoose.modelNames());
+   
 
     const coinIdPath = CoinReservation.schema.path("coinId");
 
-    console.log("coinId path:", coinIdPath?.instance);
-console.log("coinId options:", coinIdPath?.options);
+  
 
-    console.log(
-      "CoinListing registered:",
-      mongoose.models.CoinListing ? "YES" : "NO"
-    );
 
-    console.log("====================================");
-    // =========================================
 
     const reservations = (await CoinReservation.find({
       userId: decoded.userId,
@@ -116,7 +106,7 @@ console.log("coinId options:", coinIdPath?.options);
     });
 
   } catch (error) {
-    console.error("ACTIVITY API ERROR:", error);
+   
 
     return NextResponse.json(
       {

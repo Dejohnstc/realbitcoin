@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     await chat.save();
 
-    console.log("✅ ADMIN MESSAGE SAVED:", chat._id.toString());
+    
 
     // ✅ CLEAN PAYLOAD (CRITICAL FIX)
     const payload = {
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       // optional admin panel broadcast
       io.emit("new_message_admin", payload);
     } else {
-      console.log("⚠️ IO NOT FOUND (ADMIN)");
+      
     }
 
     return NextResponse.json({

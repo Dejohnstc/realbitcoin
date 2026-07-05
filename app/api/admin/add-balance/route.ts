@@ -50,10 +50,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    console.log(
-      "✅ Balance updated:",
-      updatedUser.balance
-    );
+  
 
     // 🔥 CREDIT REFERENCE
     const creditReference =

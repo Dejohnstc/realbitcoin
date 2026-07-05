@@ -54,7 +54,7 @@ export const NotificationProvider = ({
       });
 
       if (res.status === 401) {
-        console.log("❌ Unauthorized - stopping notifications");
+        
         setNotifications([]);
         return "STOP";
       }

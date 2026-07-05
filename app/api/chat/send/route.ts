@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       // 🔥 optional global emit (admin dashboard fallback)
       io.emit("new_message_admin", payload);
     } else {
-      console.log("⚠️ IO NOT FOUND");
+     
     }
 
     return NextResponse.json({

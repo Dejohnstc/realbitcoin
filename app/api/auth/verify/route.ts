@@ -63,17 +63,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     // 🔥 SEND WELCOME EMAIL ONLY FIRST TIME
     if (!wasVerified) {
       try {
-        console.log(
-          "🚀 Sending welcome email to:",
-          user.email
-        );
+       
 
         await sendWelcomeEmail(user.email);
 
-        console.log(
-          "✅ Welcome email sent to:",
-          user.email
-        );
       } catch (err) {
         console.error(
           "❌ Welcome email failed:",

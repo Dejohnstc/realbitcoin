@@ -46,7 +46,7 @@ export default function AdminDepositsPage() {
           setDeposits(data.deposits);
         }
       } catch {
-        console.log("Failed to fetch deposits");
+        
       }
 
       setLoading(false);

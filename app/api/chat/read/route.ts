@@ -28,7 +28,6 @@ export async function POST(req: Request) {
   }
 );
 
-    console.log("✅ READ UPDATED:", result.modifiedCount);
 
     // 🔥 REAL-TIME UPDATE
     const io = getIO();

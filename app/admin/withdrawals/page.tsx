@@ -52,7 +52,7 @@ export default function AdminWithdrawalsPage() {
         router.replace("/admin/login");
       }
     } catch {
-      console.log("Failed to fetch withdrawals");
+      
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-console.log("🔥 CoinListing model file loaded");
+
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface ICoinListing extends Document {
@@ -254,7 +254,6 @@ reservationEnd: {
   }
 );
 
-console.log("🔥 CoinListing model file loaded");
 
 const CoinListing: Model<ICoinListing> =
   mongoose.models.CoinListing ||
@@ -263,6 +262,6 @@ const CoinListing: Model<ICoinListing> =
     CoinListingSchema
   );
 
-console.log("🔥 CoinListing model registered");
+
 
 export default CoinListing;

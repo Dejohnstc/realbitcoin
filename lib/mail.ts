@@ -22,7 +22,7 @@ async function safeSend(payload: SendEmailPayload) {
     throw new Error(JSON.stringify(error));
   }
 
-  console.log("✅ Email sent:", data);
+  
 
   return data;
 }
@@ -114,7 +114,7 @@ export const sendOTP = async (email: string, otp: string) => {
       `,
     });
 
-    console.log("✅ Premium OTP email sent");
+    
   } catch (error) {
     console.error("❌ OTP email error:", error);
   }
@@ -161,7 +161,7 @@ export async function sendWelcomeEmail(email: string): Promise<void> {
       `,
     });
 
-    console.log("✅ Welcome email sent:", response);
+    
   } catch (error) {
     console.error("❌ Welcome email FAILED:", error);
   }
@@ -278,7 +278,7 @@ export async function sendDepositEmail(
       `,
     });
 
-    console.log("✅ Premium deposit email sent:", response);
+    
   } catch (error) {
     console.error("❌ Deposit email FAILED:", error);
   }
@@ -403,13 +403,7 @@ export async function sendWithdrawEmail(
       `,
     });
 
-    console.log("✅ Withdraw email sent:", {
-      email,
-      amount,
-      transactionId,
-      method,
-      response,
-    });
+   
   } catch (error) {
     console.error("❌ Withdraw email FAILED:", {
       email,

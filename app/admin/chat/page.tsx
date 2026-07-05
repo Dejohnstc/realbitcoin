@@ -69,7 +69,7 @@ export default function AdminChatPage() {
       const data = await res.json();
       setUsers(Array.isArray(data.users) ? data.users : []);
     } catch {
-      console.log("fetch users error");
+    
     }
   };
 

@@ -99,7 +99,7 @@ async function loadUser() {
   const token = localStorage.getItem("user_token");
 
   if (!token) {
-    console.log("❌ No user token found");
+    
     return;
   }
 

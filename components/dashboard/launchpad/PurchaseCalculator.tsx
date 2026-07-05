@@ -251,7 +251,6 @@ function handleCoinsChange(value: string) {
   type="button"
   disabled={!!validation}
   onClick={() => {
-    console.log("Reserve clicked");
     alert("Reserve clicked");
     reserveAllocation();
   }}

@@ -39,7 +39,7 @@ export default function CoinDetailPage() {
 
         setCoin(found || null);
       } catch (error) {
-        console.log("Error loading coin", error);
+       
       } finally {
         setLoading(false);
       }
