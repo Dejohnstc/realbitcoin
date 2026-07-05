@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
+import CoinListing from "@/models/CoinListing";
 import { connectDB } from "@/lib/mongodb";
 import { verifyToken } from "@/lib/auth";
 

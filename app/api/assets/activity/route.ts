@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/mongodb";
 import { verifyToken } from "@/lib/auth";
-
+import CoinListing from "@/models/CoinListing";
 import Investment from "@/models/Investment";
 import CoinReservation from "@/models/CoinReservation";
 
