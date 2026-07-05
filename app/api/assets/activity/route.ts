@@ -27,6 +27,12 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
+void CoinListing;
+
+console.log(
+  "After loading CoinListing:",
+  mongoose.modelNames()
+);
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader) {
@@ -74,10 +80,12 @@ console.log("coinId options:", coinIdPath?.options);
       userId: decoded.userId,
     })
       .populate({
-        path: "coinId",
-        select:
-          "name symbol logo listingDate currentPrice claimEnabled",
-      })
+  path: "coinId",
+  model: CoinListing,
+  select:
+    "name symbol logo listingDate currentPrice claimEnabled",
+})
+
       .sort({ createdAt: -1 })
       .limit(10)
       .lean()) as unknown as PopulatedReservation[];
