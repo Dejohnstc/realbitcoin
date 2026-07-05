@@ -112,58 +112,66 @@ export default function DepositPage() {
   }
 };
   // ✅ DEPOSIT
-  const MIN_DEPOSIT = 200;
-  const handleDeposit = async () => {
-    const token = localStorage.getItem("user_token");
+  const MIN_DEPOSIT = 500;
 
-    if (!token) return alert("Login required");
+const handleDeposit = async () => {
+  const token = localStorage.getItem("user_token");
 
-    if (
-  amount <= 0 ||
-  !selectedCoin ||
-  !selectedNetwork
-) {
-  return alert("Enter a valid amount");
-}{
-  
-    if (amount < MIN_DEPOSIT) {
-  return alert(
-    `Minimum deposit is $${MIN_DEPOSIT}`
-  );
-}
+  if (!token) {
+    alert("Login required");
+    return;
+  }
 
-    try {
-      setLoading(true);
+  if (
+    amount <= 0 ||
+    !selectedCoin ||
+    !selectedNetwork
+  ) {
+    alert("Enter a valid amount");
+    return;
+  }
 
-      const res = await fetch("/api/deposit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          amount,
-          coin: selectedCoin.symbol.toUpperCase(),
-          network: selectedNetwork.network,
-        }),
-      });
+  if (amount < MIN_DEPOSIT) {
+    alert(`Minimum deposit is $${MIN_DEPOSIT}`);
+    return;
+  }
 
-      const data = await res.json();
+  try {
+    setLoading(true);
 
-      if (!res.ok) {
-        return alert(data.error || "Deposit failed");
-      }
+    const res = await fetch("/api/deposit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        amount,
+        coin: selectedCoin.symbol.toUpperCase(),
+        network: selectedNetwork.network,
+      }),
+    });
 
-      localStorage.setItem("currentDepositId", data.deposit._id);
+    const data = await res.json();
 
-      alert("Deposit submitted, waiting for approval");
-    } catch {
-      alert("Deposit failed");
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      alert(data.error || "Deposit failed");
+      return;
     }
-  };
 
+    localStorage.setItem(
+      "currentDepositId",
+      data.deposit._id
+    );
+
+    alert("Deposit submitted, waiting for approval");
+  } catch (error) {
+    console.error(error);
+    alert("Deposit failed");
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-6">
 
@@ -304,5 +312,4 @@ export default function DepositPage() {
 
     </div>
   );
-}
 }
