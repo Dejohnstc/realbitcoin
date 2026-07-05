@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/mongodb";
 import { verifyToken } from "@/lib/auth";
+
 import CoinListing from "@/models/CoinListing";
 import Investment from "@/models/Investment";
 import CoinReservation from "@/models/CoinReservation";
@@ -51,10 +53,31 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .limit(10);
 
+    // ================= DEBUG =================
+    console.log("========== MONGOOSE DEBUG ==========");
+    console.log("Registered models:", mongoose.modelNames());
+
+    const coinIdPath = CoinReservation.schema.path("coinId");
+
+    console.log("coinId path:", coinIdPath?.instance);
+console.log("coinId options:", coinIdPath?.options);
+
+    console.log(
+      "CoinListing registered:",
+      mongoose.models.CoinListing ? "YES" : "NO"
+    );
+
+    console.log("====================================");
+    // =========================================
+
     const reservations = (await CoinReservation.find({
       userId: decoded.userId,
     })
-      .populate("coinId")
+      .populate({
+        path: "coinId",
+        select:
+          "name symbol logo listingDate currentPrice claimEnabled",
+      })
       .sort({ createdAt: -1 })
       .limit(10)
       .lean()) as unknown as PopulatedReservation[];
@@ -68,28 +91,29 @@ export async function GET(req: NextRequest) {
       })),
 
       ...reservations
-  .filter((item) => item.coinId)
-  .map((item) => ({
-    type: "launchpad" as const,
-    title: item.coinId.name,
-    amount: item.totalPaid,
-    date: new Date(item.createdAt),
-  })),
+        .filter((item) => item.coinId)
+        .map((item) => ({
+          type: "launchpad" as const,
+          title: item.coinId.name,
+          amount: item.totalPaid,
+          date: new Date(item.createdAt),
+        })),
     ].sort(
-      (a, b) =>
-        b.date.getTime() - a.date.getTime()
+      (a, b) => b.date.getTime() - a.date.getTime()
     );
 
     return NextResponse.json({
       success: true,
       activity,
     });
+
   } catch (error) {
     console.error("ACTIVITY API ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
+        activity: [],
       },
       {
         status: 500,

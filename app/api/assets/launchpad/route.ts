@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import CoinListing from "@/models/CoinListing";
+import mongoose from "mongoose";
+
 import { connectDB } from "@/lib/mongodb";
 import { verifyToken } from "@/lib/auth";
 
+import CoinListing from "@/models/CoinListing";
 import CoinReservation from "@/models/CoinReservation";
 
 export async function GET(req: NextRequest) {
@@ -29,13 +31,31 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // ================= DEBUG =================
+    console.log("========== LAUNCHPAD DEBUG ==========");
+    console.log("Registered models:", mongoose.modelNames());
+
+    console.log(
+      "CoinListing registered:",
+      mongoose.models.CoinListing ? "YES" : "NO"
+    );
+
+    console.log(
+      "CoinReservation registered:",
+      mongoose.models.CoinReservation ? "YES" : "NO"
+    );
+
+    console.log("====================================");
+    // =========================================
+
     const reservations = await CoinReservation.find({
       userId: decoded.userId,
     })
-      .populate(
-        "coinId",
-        "name symbol logo listingDate currentPrice claimEnabled"
-      )
+      .populate({
+        path: "coinId",
+        select:
+          "name symbol logo listingDate currentPrice claimEnabled",
+      })
       .sort({ createdAt: -1 })
       .lean();
 
