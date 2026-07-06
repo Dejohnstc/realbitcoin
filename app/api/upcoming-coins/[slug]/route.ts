@@ -26,9 +26,38 @@ export async function GET(
       );
     }
 
+    const totalSupply = coin.totalSupply || 0;
+    const reservedSupply = coin.reservedSupply || 0;
+    const salePrice = coin.salePrice || 0;
+
+    const remainingSupply = Math.max(
+      totalSupply - reservedSupply,
+      0
+    );
+
+    const soldPercentage =
+      totalSupply > 0
+        ? Number(
+            (
+              (reservedSupply / totalSupply) *
+              100
+            ).toFixed(2)
+          )
+        : 0;
+
+    const raised = Number(
+      (reservedSupply * salePrice).toFixed(2)
+    );
+
     return NextResponse.json({
       success: true,
-      coin,
+      coin: {
+        ...coin,
+        remainingSupply,
+        soldPercentage,
+        raised,
+        investors: coin.reservations,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -38,7 +67,9 @@ export async function GET(
         success: false,
         message: "Server error.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }

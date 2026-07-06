@@ -6,6 +6,11 @@ import Image from "next/image";
 import Countdown from "@/components/dashboard/upcoming-coins/Countdown";
 import PurchaseCalculator from "@/components/dashboard/launchpad/PurchaseCalculator";
 import LaunchProgress from "@/components/dashboard/launchpad/LaunchProgress";
+import RecentReservations from "@/components/dashboard/launchpad/RecentReservation";
+import LaunchStats from "@/components/dashboard/launchpad/LaunchStats";
+import TopBuyers from "@/components/dashboard/launchpad/TopBuyers";
+
+
 interface Coin {
   _id: string;
   name: string;
@@ -44,6 +49,10 @@ interface Coin {
   featured: boolean;
 
   status: string;
+  raised: number;
+remainingSupply: number;
+soldPercentage: number;
+investors: number;
 }
 
 export default function LaunchDetailsPage() {
@@ -184,7 +193,55 @@ async function loadUser() {
         </div>
 
       </div>
+<div className="max-w-7xl mx-auto px-6 -mt-10 relative z-20">
+  <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
 
+    <div className="rounded-2xl bg-[#131A2A] border border-cyan-500/20 p-5">
+      <p className="text-sm text-gray-400">Raised</p>
+      <h3 className="mt-2 text-2xl font-bold text-cyan-400">
+        ${coin.raised.toLocaleString()}
+      </h3>
+    </div>
+
+    <div className="rounded-2xl bg-[#131A2A] border border-green-500/20 p-5">
+      <p className="text-sm text-gray-400">Participants</p>
+      <h3 className="mt-2 text-2xl font-bold text-green-400">
+        {coin.investors.toLocaleString()}
+      </h3>
+    </div>
+
+    <div className="rounded-2xl bg-[#131A2A] border border-yellow-500/20 p-5">
+      <p className="text-sm text-gray-400">Sold</p>
+      <h3 className="mt-2 text-2xl font-bold text-yellow-400">
+        {coin.soldPercentage}%
+      </h3>
+    </div>
+
+    <div className="rounded-2xl bg-[#131A2A] border border-pink-500/20 p-5">
+      <p className="text-sm text-gray-400">Remaining</p>
+      <h3 className="mt-2 text-2xl font-bold text-pink-400">
+        {coin.remainingSupply.toLocaleString()}
+      </h3>
+    </div>
+
+  </div>
+
+  <div className="mt-6">
+    <div className="flex justify-between text-sm mb-2">
+      <span className="text-gray-400">Launch Progress</span>
+      <span>{coin.soldPercentage}%</span>
+    </div>
+
+    <div className="h-4 rounded-full bg-[#131A2A] overflow-hidden">
+      <div
+        className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 transition-all duration-700"
+        style={{
+          width: `${coin.soldPercentage}%`,
+        }}
+      />
+    </div>
+  </div>
+</div>
       {/* CONTENT */}
 
       <div className="max-w-7xl mx-auto p-6 grid lg:grid-cols-3 gap-8">
@@ -287,24 +344,63 @@ async function loadUser() {
       coin.totalSupply - coin.reservedSupply
     }
     symbol={coin.symbol}
-    onSuccess={(newBalance, reservedSupply) => {
-      setBalance(newBalance);
+   onSuccess={(newBalance, reservedSupply) => {
+  setBalance(newBalance);
 
-      setCoin((prev) =>
-        prev
-          ? {
-              ...prev,
-              reservedSupply,
-            }
-          : prev
+  setCoin((prev) => {
+    if (!prev) return prev;
+
+    const remainingSupply =
+      prev.totalSupply - reservedSupply;
+
+    const soldPercentage =
+      Number(
+        (
+          (reservedSupply / prev.totalSupply) *
+          100
+        ).toFixed(2)
       );
-    }}
+
+    const raised =
+      Number(
+        (
+          reservedSupply *
+          prev.salePrice
+        ).toFixed(2)
+      );
+
+    return {
+      ...prev,
+      reservedSupply,
+      remainingSupply,
+      soldPercentage,
+      raised,
+      investors: prev.investors + 1,
+    };
+  });
+}}
   />
 )}
 <LaunchProgress
   totalSupply={coin.totalSupply}
   reservedSupply={coin.reservedSupply}
   investors={coin.reservations}
+/>
+
+<LaunchStats
+  totalSupply={coin.totalSupply}
+  reservedSupply={coin.reservedSupply}
+  investors={coin.reservations}
+  salePrice={coin.salePrice}
+/>
+
+<RecentReservations
+  slug={coin.slug}
+  symbol={coin.symbol}
+/>
+<TopBuyers
+  slug={coin.slug}
+  symbol={coin.symbol}
 />
         </div>
 
