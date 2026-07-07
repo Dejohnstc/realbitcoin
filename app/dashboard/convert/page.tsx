@@ -25,7 +25,7 @@ const [toAsset, setToAsset] = useState("BTC");
 
 const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState(0);
-
+const [assetBalance, setAssetBalance] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -36,10 +36,14 @@ const [successData, setSuccessData] = useState({
   balance: 0,
 });
 
-  useEffect(() => {
-    loadMarkets();
-    loadUser();
-  }, []);
+useEffect(() => {
+  loadMarkets();
+  loadUser();
+}, []);
+
+useEffect(() => {
+  loadAssetBalance(fromAsset);
+}, [fromAsset]);
 
   async function loadMarkets() {
     const res = await fetch("/api/markets", {
@@ -72,20 +76,75 @@ const [successData, setSuccessData] = useState({
       setBalance(data.user.balance);
     }
   }
+async function loadAssetBalance(symbol: string) {
+  const token = localStorage.getItem("user_token");
 
+  if (!token || symbol === "USD") {
+    setAssetBalance(0);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/assets/${symbol.toLowerCase()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setAssetBalance(data.asset.amount);
+    } else {
+      setAssetBalance(0);
+    }
+  } catch {
+    setAssetBalance(0);
+  }
+}
   const receive = useMemo(() => {
-  if (!selected) return 0;
-
   const value = Number(amount);
 
   if (!value) return 0;
 
-  if (fromAsset === "USD") {
-    return value / selected.current_price;
+  const fromMarket =
+    fromAsset === "USD"
+      ? {
+          current_price: 1,
+        }
+      : markets.find(
+          (m) =>
+            m.symbol.toUpperCase() ===
+            fromAsset
+        );
+
+  const toMarket =
+    toAsset === "USD"
+      ? {
+          current_price: 1,
+        }
+      : markets.find(
+          (m) =>
+            m.symbol.toUpperCase() ===
+            toAsset
+        );
+
+  if (!fromMarket || !toMarket) {
+    return 0;
   }
 
-  return value * selected.current_price;
-}, [amount, selected, fromAsset]);
+  // Convert source asset to USD
+  const usdValue =
+    value * fromMarket.current_price;
+
+  // Convert USD to destination asset
+  return usdValue / toMarket.current_price;
+}, [
+  amount,
+  fromAsset,
+  toAsset,
+  markets,
+]);
 
  async function convert() {
   if (!selected) return;
@@ -152,14 +211,17 @@ const [successData, setSuccessData] = useState({
 
         <div className="mt-6 rounded-xl bg-[#0B0F19] p-4">
 
-          <p className="text-sm text-gray-400">
-            Available Balance
-          </p>
+         <p className="text-sm text-gray-400">
+  Available
+</p>
 
-          <p className="mt-2 text-3xl font-bold">
-            ${balance.toLocaleString()}
-          </p>
-
+<p className="mt-2 text-3xl font-bold">
+  {fromAsset === "USD"
+    ? `$${balance.toLocaleString()}`
+    : `${assetBalance.toLocaleString(undefined, {
+        maximumFractionDigits: 8,
+      })} ${fromAsset}`}
+</p>
         </div>
 
        <div className="space-y-5">
@@ -172,7 +234,21 @@ const [successData, setSuccessData] = useState({
 
     <select
       value={fromAsset}
-      onChange={(e) => setFromAsset(e.target.value)}
+      onChange={(e) => {
+  const value = e.target.value;
+
+  setFromAsset(value);
+
+  if (value !== "USD") {
+    const coin = markets.find(
+      (m) => m.symbol.toUpperCase() === value
+    );
+
+    if (coin) {
+      setSelected(coin);
+    }
+  }
+}}
       className="mt-2 w-full rounded-xl bg-[#0B0F19] border border-gray-700 p-4"
     >
       <option value="USD">USD Wallet</option>
@@ -194,13 +270,35 @@ const [successData, setSuccessData] = useState({
 
     <button
       type="button"
-      onClick={() => {
-        const from = fromAsset;
+   onClick={() => {
+  const newFrom = toAsset;
+  const newTo = fromAsset;
 
-        setFromAsset(toAsset);
+  setFromAsset(newFrom);
+  setToAsset(newTo);
 
-        setToAsset(from);
-      }}
+  setAmount("");
+
+  if (newTo !== "USD") {
+    const coin = markets.find(
+      (m) =>
+        m.symbol.toUpperCase() === newTo
+    );
+
+    if (coin) {
+      setSelected(coin);
+    }
+  } else if (newFrom !== "USD") {
+    const coin = markets.find(
+      (m) =>
+        m.symbol.toUpperCase() === newFrom
+    );
+
+    if (coin) {
+      setSelected(coin);
+    }
+  }
+}}
       className="rounded-full bg-cyan-500 p-4 text-black font-bold hover:bg-cyan-400"
     >
       ⇅
@@ -250,35 +348,35 @@ const [successData, setSuccessData] = useState({
 
 </div>
 
-        </div>
+       
 
         {selected && (
+  <div className="mt-6 flex items-center gap-4 rounded-2xl bg-[#0B0F19] p-5">
 
-          <div className="mt-5 flex items-center gap-3 rounded-xl bg-[#0B0F19] p-4">
+    <Image
+      src={selected.image}
+      alt={selected.name}
+      width={50}
+      height={50}
+      className="rounded-full"
+    />
 
-            <Image
-              src={selected.image}
-              alt={selected.name}
-              width={40}
-              height={40}
-              className="rounded-full"
-            />
+    <div>
 
-            <div>
+      <p className="font-bold">
+        {fromAsset} → {toAsset}
+      </p>
 
-              <p className="font-semibold">
-                {selected.name}
-              </p>
+     <p className="mt-2 text-xl font-bold">
+  {toAsset === "USD"
+    ? "$1.00"
+    : `$${selected?.current_price?.toLocaleString() ?? "0"}`}
+</p>
 
-              <p className="text-sm text-gray-400">
-                ${selected.current_price.toLocaleString()}
-              </p>
+    </div>
 
-            </div>
-
-          </div>
-
-        )}
+  </div>
+)}
 <div className="mt-5 grid grid-cols-2 gap-4">
 
   <div className="rounded-xl bg-[#0B0F19] p-4">
@@ -318,16 +416,18 @@ onChange={(e) => setAmount(e.target.value)}
 
   <button
     type="button"
-   onClick={() => {
+  onClick={() => {
   if (fromAsset === "USD") {
     setAmount(balance.toString());
+  } else {
+    setAmount(assetBalance.toString());
   }
 }}
     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-cyan-500 px-3 py-1 text-xs font-bold text-black"
   >
     MAX
   </button>
-
+ </div>
 </div>
 
         <div className="mt-6 rounded-xl bg-[#0B0F19] p-4">
