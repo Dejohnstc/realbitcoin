@@ -243,33 +243,52 @@ export default function DashboardPage() {
       )}
 
       {/* TOP ACTIONS */}
-      <div className="flex items-center gap-3 my-4">
-        <button
-          onClick={() => setHideBalance((h) => !h)}
-          aria-label={hideBalance ? "Show balance" : "Hide balance"}
-          className="p-3 rounded-xl bg-[#131A2A] hover:bg-[#1A2235] transition-colors"
-        >
-          {hideBalance ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
+      <div className="grid grid-cols-4 gap-3 my-5">
 
-        <button
-          onClick={() => router.push("/dashboard/deposit")}
-          aria-label="Deposit"
-          className="p-3 rounded-xl bg-[#131A2A] hover:bg-[#1A2235] transition-colors"
-        >
-          <CreditCard size={18} />
-        </button>
+  <button
+    onClick={() => router.push("/dashboard/deposit")}
+    className="group rounded-2xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-4 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-cyan-500/10"
+  >
+    <ArrowDownToLine className="mx-auto h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
+    <p className="mt-2 text-xs font-medium">
+      Deposit
+    </p>
+  </button>
 
-        <button
-          onClick={() => router.push("/dashboard/investments")}
-          className="flex-1 py-3 rounded-xl bg-yellow-400 text-black font-semibold flex items-center justify-center gap-2 hover:bg-yellow-300 active:scale-[0.99] transition"
-        >
-          <Rocket size={18} /> Start Investment
-        </button>
-      </div>
+  <button
+    onClick={() => router.push("/dashboard/withdraw")}
+    className="group rounded-2xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-4 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-cyan-500/10"
+  >
+    <ArrowUpFromLine className="mx-auto h-6 w-6 text-red-400 transition-transform duration-300 group-hover:scale-110" />
+    <p className="mt-2 text-xs font-medium">
+      Withdraw
+    </p>
+  </button>
+
+  <button
+    onClick={() => router.push("/dashboard/convert")}
+    className="group rounded-2xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-4 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-cyan-500/10"
+  >
+    <RefreshCw className="mx-auto h-6 w-6 text-cyan-400" />
+    <p className="mt-2 text-xs font-medium">
+      Convert
+    </p>
+  </button>
+
+  <button
+    onClick={() => router.push("/dashboard/investments")}
+    className="rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-500 p-4 text-black transition hover:scale-[1.03]"
+  >
+    <Rocket className="mx-auto h-6 w-6" />
+    <p className="mx-auto h-6 w-6 transition-transform duration-300 group-hover:scale-110">
+      Invest
+    </p>
+  </button>
+
+</div>
 
       {/* HERO BALANCE */}
-      <div className="bg-gradient-to-br from-[#1A2235] to-[#131A2A] border border-gray-800 p-6 rounded-2xl mb-4">
+      <div className="bg-gradient-to-br from-[#1F2942] via-[#182135] to-[#111827]border border-cyan-500/10 p-5 rounded-2xl mb-4">
         <div className="flex items-center justify-between">
           <p className="text-gray-400 text-sm flex items-center gap-1.5">
             Total Balance
@@ -280,13 +299,13 @@ export default function DashboardPage() {
         {balanceLoading ? (
           <div className="mt-2 h-9 w-44 bg-white/5 rounded animate-pulse" />
         ) : (
-          <h1 className="mt-1 text-4xl font-bold tracking-tight">
+          <h1 className="mt-1 text-4xl font-black tracking-tight drop-shadow-sm">
             {hideBalance ? "••••••" : formatUSD(total)}
           </h1>
         )}
 
-        <div className="mt-4 flex gap-3">
-          <div className="flex-1 bg-[#0B0F19]/60 rounded-xl px-3 py-2">
+        <div className="mt-3 flex gap-3">
+          <div className="flex-1 bg-[#0F1526] border border-white/5 rounded-2xl px-3 py-2">
             <p className="text-gray-500 text-[11px]">Available</p>
             <p className="text-sm font-medium">
               {hideBalance ? "••••" : formatUSD(available)}
@@ -301,6 +320,18 @@ export default function DashboardPage() {
         </div>
       </div>
       {/* UPCOMING COIN LISTINGS */}
+
+<div className="mb-3 mt-8 flex items-center justify-between">
+
+  <h2 className="text-lg font-bold">
+    Featured Launch
+  </h2>
+
+  <button className="text-sm text-cyan-400 hover:text-cyan-300">
+    View All
+  </button>
+
+</div>
 
 <FeaturedLaunch />
 
@@ -332,7 +363,7 @@ export default function DashboardPage() {
       </div>
 
       {/* CHART */}
-      <div className="mt-6 bg-[#131A2A] p-2 rounded-xl">
+      <div className="mt-4 bg-[#131A2A] p-2 rounded-xl">
         <iframe
           title="BTC/USDT chart"
           loading="lazy"
@@ -342,7 +373,7 @@ export default function DashboardPage() {
       </div>
 
       {/* MARKETS */}
-      <div className="mt-6 bg-[#131A2A] p-4 rounded-xl">
+      <div className="mt-4 bg-[#131A2A] p-4 rounded-xl">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold flex items-center gap-2">
             <LineChart size={16} className="text-yellow-400" /> Live Markets
@@ -409,7 +440,7 @@ export default function DashboardPage() {
       </div>
 
       {/* QUICK TRADE */}
-      <div className="mt-6 bg-[#131A2A] p-4 rounded-xl">
+      <div className="mt-4 bg-[#131A2A] p-4 rounded-xl">
         <h2 className="mb-3 font-semibold flex items-center gap-2">
           <Activity size={16} className="text-yellow-400" /> Quick Trade
         </h2>
@@ -459,20 +490,47 @@ export default function DashboardPage() {
       </div>
 
       {/* MENU */}
-      <div className="mt-6 space-y-3">
-        {menu.map(({ icon: Icon, label, onClick }) => (
-          <div
-            key={label}
-            onClick={onClick}
-            className="flex items-center justify-between p-4 bg-[#131A2A] rounded-xl cursor-pointer hover:bg-[#1A2235] active:scale-[0.99] transition"
-          >
-            <span className="flex items-center gap-3">
-              <Icon size={18} className="text-gray-300" />
-              {label}
-            </span>
-            <ChevronRight size={18} className="text-gray-500" />
-          </div>
-        ))}
+      <div className="mt-4 space-y-3">
+       <div className="mt-6">
+
+  <div className="mb-4 flex items-center justify-between">
+
+    <h2 className="text-lg font-bold">
+      Services
+    </h2>
+
+  </div>
+
+  <div className="grid grid-cols-2 gap-4">
+
+    {menu.map(({ icon: Icon, label, onClick }) => (
+
+      <button
+        key={label}
+        onClick={onClick}
+        className="group rounded-2xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30"
+      >
+
+        <Icon
+          size={26}
+          className="mb-4 text-cyan-400 transition group-hover:scale-110"
+        />
+
+        <p className="font-semibold">
+          {label}
+        </p>
+
+        <p className="mt-1 text-xs text-gray-400">
+          Open
+        </p>
+
+      </button>
+
+    ))}
+
+  </div>
+
+</div> 
       </div>
 
       <style jsx>{`
