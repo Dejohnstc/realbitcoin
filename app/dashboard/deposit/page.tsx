@@ -383,7 +383,7 @@ const handleDeposit = async () => {
     </span>
 
     <span className="font-bold text-cyan-400">
-      $500
+      $10
     </span>
 
   </div>
