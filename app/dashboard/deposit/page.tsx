@@ -394,7 +394,7 @@ const handleDeposit = async () => {
         onClick={handleDeposit}
         className="mt-6 w-full rounded-2xl bg-gradient-to-r from-yellow-400 to-yellow-500 py-4 text-base font-bold text-black shadow-lg transition hover:scale-[1.02] hover:shadow-yellow-500/20 disabled:opacity-40"
       >
-        {loading ? "Processing..." : "Deposit Submitted"}
+        {loading ? "Processing..." : "Submit Deposit"}
       </button>
 
     </div>
