@@ -373,71 +373,105 @@ export default function DashboardPage() {
       </div>
 
       {/* MARKETS */}
-      <div className="mt-4 bg-[#131A2A] p-4 rounded-xl">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold flex items-center gap-2">
-            <LineChart size={16} className="text-yellow-400" /> Live Markets
-          </h2>
-          {marketError && (
-            <button
-              onClick={fetchMarkets}
-              className="text-xs flex items-center gap-1 text-yellow-400 hover:text-yellow-300"
-            >
-              <RefreshCw size={12} /> Retry
-            </button>
-          )}
-        </div>
+      {/* LIVE MARKETS */}
 
-        {loadingMarkets && (
-          <div className="space-y-2">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-8 bg-white/5 rounded animate-pulse"
+<div className="mt-6">
+
+  <div className="mb-4 flex items-center justify-between">
+
+    <h2 className="text-lg font-bold">
+      Live Markets
+    </h2>
+
+    <button
+      onClick={() => router.push("/dashboard/livemarket")}
+      className="text-sm text-cyan-400 hover:text-cyan-300"
+    >
+      View All
+    </button>
+
+  </div>
+
+  <div className="space-y-3">
+
+    {markets.slice(0, 5).map((coin) => {
+
+      const up =
+        coin.price_change_percentage_24h >= 0;
+
+      return (
+
+        <button
+          key={coin.id}
+          onClick={() =>
+            router.push(
+              `/dashboard/livemarket/${coin.symbol}`
+            )
+          }
+          className="flex w-full items-center justify-between rounded-2xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-4 transition hover:border-cyan-400/30 hover:bg-[#1A2235]"
+        >
+
+          <div className="flex items-center gap-3">
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-500/10">
+
+              <Bitcoin
+                size={20}
+                className="text-yellow-400"
               />
-            ))}
+
+            </div>
+
+            <div className="text-left">
+
+              <p className="font-semibold">
+                {coin.symbol.toUpperCase()}
+              </p>
+
+              <p className="text-xs text-gray-400">
+                {coin.id}
+              </p>
+
+            </div>
+
           </div>
-        )}
 
-        {!loadingMarkets && marketError && (
-          <p className="text-red-400 text-sm">
-            Couldn&apos;t load markets. Tap retry to try again.
-          </p>
-        )}
+          <div className="text-right">
 
-        {!loadingMarkets &&
-          !marketError &&
-          markets.slice(0, 5).map((m) => {
-            const change = m.price_change_percentage_24h ?? 0;
-            const up = change >= 0;
-            return (
-              <div
-                key={m.id}
-                onClick={() =>
-                  router.push(`/dashboard/livemarket/${m.symbol}`)
-                }
-                className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0 cursor-pointer hover:bg-white/[0.02] px-1 rounded transition-colors"
-              >
-                <span className="font-medium">{m.symbol.toUpperCase()}</span>
-                <span className="text-gray-300">
-                  {formatUSD(m.current_price ?? 0)}
-                </span>
-                <span
-                  className={`flex items-center gap-1 text-sm ${
-                    up ? "text-green-400" : "text-red-400"
-                  }`}
-                >
-                  {up ? (
-                    <TrendingUp size={13} />
-                  ) : (
-                    <TrendingDown size={13} />
-                  )}
-                  {Math.abs(change).toFixed(2)}%
-                </span>
-              </div>
-            );
-          })}
-      </div>
+            <p className="font-bold">
+
+              {formatUSD(coin.current_price)}
+
+            </p>
+
+            <p
+              className={`text-sm ${
+                up
+                  ? "text-green-400"
+                  : "text-red-400"
+              }`}
+            >
+
+              {up ? "+" : ""}
+
+              {coin.price_change_percentage_24h.toFixed(
+                2
+              )}
+              %
+
+            </p>
+
+          </div>
+
+        </button>
+
+      );
+
+    })}
+
+  </div>
+
+</div>
 
       {/* QUICK TRADE */}
       <div className="mt-4 bg-[#131A2A] p-4 rounded-xl">
