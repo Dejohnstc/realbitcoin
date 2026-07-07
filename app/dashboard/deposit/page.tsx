@@ -21,6 +21,7 @@ interface Market {
 
 export default function DepositPage() {
   const router = useRouter();
+  const [copied, setCopied] = useState(false);
 
   // ✅ STATIC DATA (no useState needed)
   const coins: Coin[] = [
@@ -106,7 +107,12 @@ export default function DepositPage() {
       selectedNetwork.address
     );
 
-    alert("Address copied successfully");
+    setCopied(true);
+
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
+
   } catch {
     alert("Failed to copy address");
   }
@@ -184,31 +190,63 @@ const handleDeposit = async () => {
           <ArrowLeft size={20} />
         </button>
 
-        <h1 className="text-xl font-bold">Deposit Funds</h1>
+        <div>
+
+  <h1 className="text-3xl font-black">
+    Deposit Crypto
+  </h1>
+
+  <p className="mt-1 text-sm text-gray-400">
+    Securely fund your CoinlyBitora wallet.
+  </p>
+
+</div>
       </div>
 
       {/* COIN SELECT */}
       <div className="mb-4">
         <label className="text-gray-400 text-sm">Select Coin</label>
 
-        <select
-          className="w-full p-3 rounded-xl bg-[#131A2A] mt-2"
-          onChange={(e) => {
-            const coin =
-              coins.find((c) => c.symbol === e.target.value) || null;
+       <div className="grid grid-cols-3 gap-3 mt-3">
 
-            setSelectedCoin(coin);
-            setSelectedNetwork(coin ? coin.networks[0] : null);
-          }}
-        >
-          <option value="">Choose coin</option>
+  {coins.map((coin) => (
 
-          {coins.map((coin) => (
-            <option key={coin.symbol} value={coin.symbol}>
-              {coin.name}
-            </option>
-          ))}
-        </select>
+    <button
+      key={coin.symbol}
+      onClick={() => {
+        setSelectedCoin(coin);
+        setSelectedNetwork(coin.networks[0]);
+      }}
+      className={`rounded-2xl border p-4 transition ${
+        selectedCoin?.symbol === coin.symbol
+          ? "border-cyan-400 bg-cyan-500/10"
+          : "border-white/5 bg-[#131A2A] hover:border-cyan-400/30"
+      }`}
+    >
+
+      <div className="text-2xl">
+
+        {coin.symbol === "btc"
+          ? "₿"
+          : coin.symbol === "eth"
+          ? "Ξ"
+          : "₮"}
+
+      </div>
+
+      <p className="mt-2 font-semibold">
+        {coin.symbol.toUpperCase()}
+      </p>
+
+      <p className="text-xs text-gray-500">
+        {coin.name}
+      </p>
+
+    </button>
+
+  ))}
+
+</div>
       </div>
 
       {/* NETWORK */}
@@ -241,26 +279,56 @@ const handleDeposit = async () => {
         <input
           type="number"
           placeholder="Enter amount"
-          className="w-full p-3 rounded-xl bg-[#131A2A] mt-2"
+          className="w-full p-3 rounded-2xl bg-[#131A2A] mt-2"
           onChange={(e) => setAmount(Number(e.target.value))}
         />
       </div>
 
       {/* CONVERSION */}
       {selectedCoin && amount > 0 && (
-        <div className="bg-[#131A2A] p-4 rounded-xl mb-4 text-sm">
-          <p className="text-gray-400 mb-2">You will send</p>
+        <div className="mb-5 rounded-2xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-5">
+         <p className="text-xs uppercase tracking-wider text-gray-400">
+  Deposit Summary
+</p>
 
-          <div className="flex justify-between">
-            <span>{selectedCoin.symbol.toUpperCase()}</span>
-            <span>{getConverted().toFixed(6)}</span>
-          </div>
+<div className="mt-4 flex items-center justify-between">
+
+  <div>
+
+    <p className="text-gray-500">
+      You Send
+    </p>
+
+    <p className="mt-1 text-xl font-bold">
+      ${amount.toLocaleString()}
+    </p>
+
+  </div>
+
+  <div className="text-3xl text-cyan-400">
+    ↓
+  </div>
+
+  <div className="text-right">
+
+    <p className="text-gray-500">
+      Transfer
+    </p>
+
+    <p className="mt-1 text-xl font-bold text-cyan-400">
+      {getConverted().toFixed(6)}{" "}
+      {selectedCoin.symbol.toUpperCase()}
+    </p>
+
+  </div>
+
+</div>
         </div>
       )}
 
       {/* WALLET */}
       {selectedNetwork && (
-        <div className="bg-[#131A2A] p-4 rounded-xl mb-4">
+        <div className="rounded-3xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-6"> 
 
           <p className="text-sm text-gray-400 mb-2">
             Send {selectedCoin?.name}
@@ -269,25 +337,7 @@ const handleDeposit = async () => {
           <div className="inline-flex px-3 py-1 rounded-full bg-yellow-400 text-black text-xs font-semibold mb-3">
   {selectedNetwork.network}
 </div>
-
-          <p className="text-green-400 break-all text-sm mb-3">
-            {selectedNetwork.address}
-          </p>
-<div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-  <p className="text-xs text-red-300">
-    Only send {selectedCoin?.symbol.toUpperCase()}
-    {" "}via {selectedNetwork.network}.
-    Sending other assets may result in permanent loss.
-  </p>
-</div>
-          <button
-            onClick={copyAddress}
-            className="w-full py-2 bg-blue-500 rounded-lg text-sm"
-          >
-            Copy Address
-          </button>
-
-          <div className="mt-4 flex justify-center">
+ <div className="mt-4 flex justify-center">
             <Image
               src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
   selectedNetwork.address
@@ -298,16 +348,53 @@ const handleDeposit = async () => {
               className="rounded-lg"
             />
           </div>
+          <div className="mt-4 rounded-xl bg-[#0B0F19] border border-white/5 p-3">
+
+  <p className="break-all font-mono text-sm text-green-400">
+    {selectedNetwork.address}
+  </p>
+
+</div>
+<div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+  <p className="text-xs text-yellow-300">
+    Only send {selectedCoin?.symbol.toUpperCase()}
+    {" "}via {selectedNetwork.network}.
+    Sending other assets may result in permanent loss.
+  </p>
+</div>
+          <button
+            onClick={copyAddress}
+           className="mt-4 w-full rounded-2xl border border-cyan-500/20 bg-cyan-500/10 py-3 font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
+          >
+            {copied ? "✓ Copied" : "Copy Wallet"}
+          </button>
+
+         
         </div>
       )}
 
       {/* BUTTON */}
+      <div className="mb-5 rounded-2xl border border-white/5 bg-[#131A2A] p-4">
+
+  <div className="flex items-center justify-between">
+
+    <span className="text-gray-400">
+      Minimum Deposit
+    </span>
+
+    <span className="font-bold text-cyan-400">
+      $500
+    </span>
+
+  </div>
+
+</div>
       <button
         disabled={loading}
         onClick={handleDeposit}
-        className="w-full py-3 bg-yellow-400 text-black rounded-xl font-semibold disabled:opacity-50"
+        className="mt-6 w-full rounded-2xl bg-gradient-to-r from-yellow-400 to-yellow-500 py-4 text-base font-bold text-black shadow-lg transition hover:scale-[1.02] hover:shadow-yellow-500/20 disabled:opacity-40"
       >
-        {loading ? "Processing..." : "I Have Paid"}
+        {loading ? "Processing..." : "Deposit Submitted"}
       </button>
 
     </div>
