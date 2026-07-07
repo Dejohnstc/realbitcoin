@@ -147,7 +147,7 @@ const [successData, setSuccessData] = useState({
         </h1>
 
         <p className="mt-2 text-gray-400">
-          Purchase crypto instantly.
+          Convert between USD and your crypto assets.
         </p>
 
         <div className="mt-6 rounded-xl bg-[#0B0F19] p-4">
@@ -162,62 +162,91 @@ const [successData, setSuccessData] = useState({
 
         </div>
 
-        <div className="mt-6">
+       <div className="space-y-5">
 
-          <label className="text-sm text-gray-400">
-            Select Asset
-          </label>
+  <div>
 
-         <div className="mt-3 max-h-72 overflow-y-auto rounded-2xl border border-gray-800 bg-[#0B0F19]">
+    <label className="text-sm text-gray-400">
+      From
+    </label>
 
-  {markets.map((coin) => (
+    <select
+      value={fromAsset}
+      onChange={(e) => setFromAsset(e.target.value)}
+      className="mt-2 w-full rounded-xl bg-[#0B0F19] border border-gray-700 p-4"
+    >
+      <option value="USD">USD Wallet</option>
+
+      {markets.map((coin) => (
+        <option
+          key={coin.id}
+          value={coin.symbol.toUpperCase()}
+        >
+          {coin.name}
+        </option>
+      ))}
+
+    </select>
+
+  </div>
+
+  <div className="flex justify-center">
 
     <button
-      key={coin.id}
       type="button"
-      onClick={() => setSelected(coin)}
-      className={`flex w-full items-center justify-between border-b border-gray-800 p-4 transition hover:bg-[#182136] ${
-        selected?.id === coin.id
-          ? "bg-cyan-500/10 border-cyan-500"
-          : ""
-      }`}
+      onClick={() => {
+        const from = fromAsset;
+
+        setFromAsset(toAsset);
+
+        setToAsset(from);
+      }}
+      className="rounded-full bg-cyan-500 p-4 text-black font-bold hover:bg-cyan-400"
     >
-
-      <div className="flex items-center gap-4">
-
-        <Image
-          src={coin.image}
-          alt={coin.name}
-          width={42}
-          height={42}
-          className="rounded-full"
-        />
-
-        <div className="text-left">
-
-          <p className="font-semibold">
-            {coin.name}
-          </p>
-
-          <p className="text-xs text-gray-400">
-            {coin.symbol.toUpperCase()}
-          </p>
-
-        </div>
-
-      </div>
-
-      <div className="text-right">
-
-        <p className="font-bold">
-          ${coin.current_price.toLocaleString()}
-        </p>
-
-      </div>
-
+      ⇅
     </button>
 
-  ))}
+  </div>
+
+  <div>
+
+    <label className="text-sm text-gray-400">
+      To
+    </label>
+
+    <select
+      value={toAsset}
+      onChange={(e) => {
+        setToAsset(e.target.value);
+
+        const coin = markets.find(
+          (m) =>
+            m.symbol.toUpperCase() ===
+            e.target.value
+        );
+
+        if (coin) {
+          setSelected(coin);
+        }
+      }}
+      className="mt-2 w-full rounded-xl bg-[#0B0F19] border border-gray-700 p-4"
+    >
+      <option value="USD">
+        USD Wallet
+      </option>
+
+      {markets.map((coin) => (
+        <option
+          key={coin.id}
+          value={coin.symbol.toUpperCase()}
+        >
+          {coin.name}
+        </option>
+      ))}
+
+    </select>
+
+  </div>
 
 </div>
 
@@ -308,8 +337,7 @@ onChange={(e) => setAmount(e.target.value)}
           </p>
 
           <p className="mt-2 text-2xl font-bold text-cyan-400">
-            {receive.toFixed(8)}{" "}
-            {selected?.symbol.toUpperCase()}
+           {receive.toFixed(8)} {toAsset}
           </p>
 
         </div>
@@ -329,7 +357,7 @@ onChange={(e) => setAmount(e.target.value)}
 
       </div>
 
-    </div>
+    
     <ConvertSuccessModal
   open={showSuccess}
   coin={successData.coin}
