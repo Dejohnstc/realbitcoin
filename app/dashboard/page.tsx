@@ -242,6 +242,116 @@ export default function DashboardPage() {
         </div>
       )}
 
+ {/* HERO BALANCE */}
+     <div className="relative mb-5 overflow-hidden rounded-3xl border border-cyan-500/10 bg-gradient-to-br from-[#1F2942] via-[#182135] to-[#111827] p-6 shadow-2xl">
+
+  {/* Background Effects */}
+  <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
+  <div className="absolute -left-20 bottom-0 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl" />
+
+  <div className="relative z-10">
+
+    {/* Header */}
+    <div className="flex items-start justify-between">
+
+      <div>
+
+        <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-300/80">
+          Portfolio Value
+        </p>
+
+        {balanceLoading ? (
+          <div className="mt-3 h-10 w-48 animate-pulse rounded bg-white/10" />
+        ) : (
+          <h1 className="mt-2 text-4xl font-black tracking-tight">
+            {hideBalance ? "••••••" : formatUSD(total)}
+          </h1>
+        )}
+
+        <div className="mt-3 inline-flex items-center rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1">
+
+          <span className="text-xs font-semibold text-green-400">
+            ● Portfolio Active
+          </span>
+
+        </div>
+
+      </div>
+
+      <div className="flex items-center gap-2">
+
+        {isLocked && (
+          <div className="rounded-full border border-yellow-500/20 bg-yellow-500/10 p-2">
+
+            <Lock
+              size={15}
+              className="text-yellow-400"
+            />
+
+          </div>
+        )}
+
+      </div>
+
+    </div>
+
+    {/* Stats */}
+
+    <div className="mt-6 grid grid-cols-2 gap-4">
+
+      <div className="rounded-2xl border border-white/5 bg-[#0F1526]/90 p-4 backdrop-blur">
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Available
+        </p>
+
+        <p className="mt-2 text-xl font-bold">
+          {hideBalance ? "••••" : formatUSD(available)}
+        </p>
+
+      </div>
+
+      <div className="rounded-2xl border border-white/5 bg-[#0F1526]/90 p-4 backdrop-blur">
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Locked
+        </p>
+
+        <p className="mt-2 text-xl font-bold text-yellow-400">
+          {hideBalance ? "••••" : formatUSD(locked)}
+        </p>
+
+      </div>
+
+    </div>
+
+    {/* Footer */}
+
+    <div className="mt-6 flex items-center justify-between border-t border-white/5 pt-4">
+
+      <div>
+
+        <p className="text-xs text-gray-500">
+          Account Status
+        </p>
+
+        <p className="font-semibold text-green-400">
+          Verified & Secure
+        </p>
+
+      </div>
+
+      <button
+        className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500/20"
+      >
+        View Portfolio →
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
       {/* TOP ACTIONS */}
       <div className="grid grid-cols-4 gap-3 my-5">
 
@@ -287,38 +397,7 @@ export default function DashboardPage() {
 
 </div>
 
-      {/* HERO BALANCE */}
-      <div className="bg-gradient-to-br from-[#1F2942] via-[#182135] to-[#111827]border border-cyan-500/10 p-5 rounded-2xl mb-4">
-        <div className="flex items-center justify-between">
-          <p className="text-gray-400 text-sm flex items-center gap-1.5">
-            Total Balance
-            {isLocked && <Lock size={13} className="text-yellow-400" />}
-          </p>
-        </div>
-
-        {balanceLoading ? (
-          <div className="mt-2 h-9 w-44 bg-white/5 rounded animate-pulse" />
-        ) : (
-          <h1 className="mt-1 text-4xl font-black tracking-tight drop-shadow-sm">
-            {hideBalance ? "••••••" : formatUSD(total)}
-          </h1>
-        )}
-
-        <div className="mt-3 flex gap-3">
-          <div className="flex-1 bg-[#0F1526] border border-white/5 rounded-2xl px-3 py-2">
-            <p className="text-gray-500 text-[11px]">Available</p>
-            <p className="text-sm font-medium">
-              {hideBalance ? "••••" : formatUSD(available)}
-            </p>
-          </div>
-          <div className="flex-1 bg-[#0B0F19]/60 rounded-xl px-3 py-2">
-            <p className="text-gray-500 text-[11px]">Locked</p>
-            <p className="text-sm font-medium text-yellow-400">
-              {hideBalance ? "••••" : formatUSD(locked)}
-            </p>
-          </div>
-        </div>
-      </div>
+     
       {/* UPCOMING COIN LISTINGS */}
 
 <div className="mb-3 mt-8 flex items-center justify-between">
@@ -474,55 +553,73 @@ export default function DashboardPage() {
 </div>
 
       {/* QUICK TRADE */}
-      <div className="mt-4 bg-[#131A2A] p-4 rounded-xl">
-        <h2 className="mb-3 font-semibold flex items-center gap-2">
-          <Activity size={16} className="text-yellow-400" /> Quick Trade
-        </h2>
+      {/* QUICK CONVERT */}
 
-        <input
-          type="number"
-          min={0}
-          value={tradeAmount || ""}
-          onChange={(e) => setTradeAmount(Number(e.target.value))}
-          className="w-full p-3 mb-2 bg-[#0B0F19] rounded-lg outline-none focus:ring-1 focus:ring-yellow-400"
-          placeholder="Enter amount (USD)"
-        />
+<div className="mt-6 rounded-3xl border border-white/5 bg-gradient-to-b from-[#1B2338] to-[#141B2D] p-5">
 
-        <div className="flex gap-2 mb-3">
-          {[
-            { label: "25%", pct: 0.25 },
-            { label: "50%", pct: 0.5 },
-            { label: "Max", pct: 1 },
-          ].map((c) => (
-            <button
-              key={c.label}
-              onClick={() => setTradePct(c.pct)}
-              className="flex-1 py-1.5 text-xs rounded-lg bg-[#0B0F19] text-gray-300 hover:text-white hover:bg-[#0B0F19]/70 transition-colors"
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+  <div className="mb-5 flex items-center justify-between">
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => handleTrade("buy")}
-            disabled={trading || tradeAmount <= 0}
-            className="flex-1 py-3 bg-green-500 text-black rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-400 active:scale-[0.99] transition"
-          >
-            {trading ? "..." : "Buy"}
-          </button>
+    <div>
 
-          <button
-            onClick={() => handleTrade("sell")}
-            disabled={trading || tradeAmount <= 0}
-            className="flex-1 py-3 bg-red-500 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-400 active:scale-[0.99] transition"
-          >
-            {trading ? "..." : "Sell"}
-          </button>
-        </div>
-      </div>
+      <h2 className="text-lg font-bold">
+        Quick Convert
+      </h2>
 
+      <p className="text-sm text-gray-400">
+        Instantly convert assets
+      </p>
+
+    </div>
+
+  </div>
+
+  <div className="grid grid-cols-3 gap-3">
+
+    <div className="rounded-2xl bg-[#0F1526] p-3">
+
+      <p className="text-xs text-gray-500">
+        From
+      </p>
+
+      <p className="mt-2 font-semibold">
+        USD
+      </p>
+
+    </div>
+
+    <div className="flex items-center justify-center">
+
+      <RefreshCw
+        size={22}
+        className="text-cyan-400"
+      />
+
+    </div>
+
+    <div className="rounded-2xl bg-[#0F1526] p-3">
+
+      <p className="text-xs text-gray-500">
+        To
+      </p>
+
+      <p className="mt-2 font-semibold">
+        BTC
+      </p>
+
+    </div>
+
+  </div>
+
+  <button
+    onClick={() =>
+      router.push("/dashboard/convert")
+    }
+    className="mt-5 w-full rounded-2xl bg-cyan-500 py-3 font-bold text-black transition hover:bg-cyan-400"
+  >
+    Open Converter
+  </button>
+
+</div>
       {/* MENU */}
       <div className="mt-4 space-y-3">
        <div className="mt-6">
