@@ -10,8 +10,9 @@ import Portfolio from "@/models/portfolio";
 import Conversion from "@/models/Conversion";
 
 interface ConvertBody {
-  symbol: string;
-  usdAmount: number;
+  fromAsset: string;
+  toAsset: string;
+  amount: number;
 }
 
 export async function POST(req: NextRequest) {
@@ -35,12 +36,20 @@ export async function POST(req: NextRequest) {
     if (!decoded?.userId) {
       throw new Error("Unauthorized");
     }
-        const { symbol, usdAmount }: ConvertBody =
-      await req.json();
+      const {
+  fromAsset,
+  toAsset,
+  amount,
+}: ConvertBody = await req.json();
 
-    if (!symbol || usdAmount <= 0) {
-      throw new Error("Invalid request.");
-    }
+if (
+  !fromAsset ||
+  !toAsset ||
+  fromAsset === toAsset ||
+  amount <= 0
+) {
+  throw new Error("Invalid conversion request.");
+}
         const user = await User.findById(
       decoded.userId
     ).session(session);
@@ -48,132 +57,183 @@ export async function POST(req: NextRequest) {
     if (!user) {
       throw new Error("User not found.");
     }
+const markets = await getMarkets();
 
-    if (user.balance < usdAmount) {
-      throw new Error("Insufficient balance.");
-    }
+     const fromMarket =
+  fromAsset === "USD"
+    ? {
+        symbol: "USD",
+        name: "US Dollar",
+        image: "",
+        current_price: 1,
+      }
+    : markets.find(
+        (m) =>
+          m.symbol.toUpperCase() ===
+          fromAsset.toUpperCase()
+      );
 
-        const markets = await getMarkets();
+const toMarket =
+  toAsset === "USD"
+    ? {
+        symbol: "USD",
+        name: "US Dollar",
+        image: "",
+        current_price: 1,
+      }
+    : markets.find(
+        (m) =>
+          m.symbol.toUpperCase() ===
+          toAsset.toUpperCase()
+      );
 
-    const market = markets.find(
-      (item) =>
-        item.symbol.toUpperCase() ===
-        symbol.toUpperCase()
+if (!fromMarket || !toMarket) {
+  throw new Error("Unsupported asset.");
+}
+
+const usdValue =
+  fromAsset === "USD"
+    ? amount
+    : amount * fromMarket.current_price;
+
+const receiveAmount =
+  toAsset === "USD"
+    ? usdValue
+    : usdValue / toMarket.current_price;
+       if (fromAsset === "USD") {
+  // BUY CRYPTO
+
+  if (user.balance < amount) {
+    throw new Error("Insufficient USD balance.");
+  }
+
+  user.balance -= amount;
+
+  let portfolio = await Portfolio.findOne({
+    userId: user._id,
+    assetSymbol: toMarket.symbol.toUpperCase(),
+  }).session(session);
+
+  if (!portfolio) {
+    const [newPortfolio] = await Portfolio.create(
+      [
+        {
+          userId: user._id,
+          assetSymbol: toMarket.symbol.toUpperCase(),
+          assetName: toMarket.name,
+          logo: toMarket.image,
+          amount: receiveAmount,
+          averageBuyPrice: toMarket.current_price,
+          currentPrice: toMarket.current_price,
+          isLaunchToken: false,
+        },
+      ],
+      { session }
     );
 
-    if (!market) {
-      throw new Error("Asset not supported.");
-    }
+    portfolio = newPortfolio;
+  } else {
+    const totalCost =
+      portfolio.amount *
+      portfolio.averageBuyPrice;
 
-    const currentPrice = market.current_price;
+    portfolio.averageBuyPrice =
+      (totalCost + amount) /
+      (portfolio.amount + receiveAmount);
 
-    if (currentPrice <= 0) {
-      throw new Error("Invalid market price.");
-    }
+    portfolio.amount += receiveAmount;
+    portfolio.currentPrice = toMarket.current_price;
 
-    const coinsPurchased =
-      usdAmount / currentPrice;
-          let portfolio =
-      await Portfolio.findOne({
+    await portfolio.save({ session });
+  }
+
+  await user.save({ session });
+
+  await Conversion.create(
+    [
+      {
         userId: user._id,
-        assetSymbol:
-          market.symbol.toUpperCase(),
-      }).session(session);
-          if (!portfolio) {
-      portfolio = await Portfolio.create(
-        [
-          {
-            userId: user._id,
+        fromAsset,
+        toAsset,
+        fromAmount: amount,
+        toAmount: receiveAmount,
+        fromPrice: 1,
+        toPrice: toMarket.current_price,
+      },
+    ],
+    { session }
+  );
 
-            assetSymbol:
-              market.symbol.toUpperCase(),
+  await session.commitTransaction();
+  session.endSession();
 
-            assetName: market.name,
-
-            logo: market.image,
-
-            amount: coinsPurchased,
-
-            averageBuyPrice:
-              currentPrice,
-
-            currentPrice,
-
-            isLaunchToken: false,
-          },
-        ],
-        { session }
-      ).then((docs) => docs[0]);
-    } else {
-      const currentValue =
-        portfolio.amount *
-        portfolio.averageBuyPrice;
-
-      const newValue =
-        usdAmount;
-
-      portfolio.averageBuyPrice =
-        (currentValue + newValue) /
-        (portfolio.amount +
-          coinsPurchased);
-
-      portfolio.amount +=
-        coinsPurchased;
-
-      portfolio.currentPrice =
-        currentPrice;
-
-      await portfolio.save({
-        session,
-      });
-    }
-        user.balance -= usdAmount;
-
-    await user.save({
-      session,
-    });
-    if (!portfolio) {
-  throw new Error("Portfolio creation failed.");
+  return NextResponse.json({
+    success: true,
+    balance: user.balance,
+    portfolio,
+  });
 }
-    await Conversion.create(
-  [
-    {
-      userId: user._id,
 
-      fromAsset: "USD",
+if (toAsset === "USD") {
+  // SELL CRYPTO
 
-      toAsset: market.symbol.toUpperCase(),
+  const portfolio = await Portfolio.findOne({
+    userId: user._id,
+    assetSymbol: fromAsset.toUpperCase(),
+  }).session(session);
 
-      fromAmount: usdAmount,
+  if (!portfolio) {
+    throw new Error("Asset not found.");
+  }
 
-      toAmount: coinsPurchased,
+  if (portfolio.amount < amount) {
+    throw new Error("Insufficient asset balance.");
+  }
 
-      fromPrice: 1,
+  portfolio.amount -= amount;
+  portfolio.currentPrice = fromMarket.current_price;
 
-      toPrice: currentPrice,
-    },
-  ],
-  { session }
-);
-await session.commitTransaction();
+  if (portfolio.amount <= 0) {
+    await Portfolio.deleteOne(
+      { _id: portfolio._id },
+      { session }
+    );
+  } else {
+    await portfolio.save({ session });
+  }
 
-session.endSession();
+  user.balance += receiveAmount;
 
-return NextResponse.json({
-  success: true,
+  await user.save({ session });
 
-  balance: user.balance,
+  await Conversion.create(
+    [
+      {
+        userId: user._id,
+        fromAsset,
+        toAsset,
+        fromAmount: amount,
+        toAmount: receiveAmount,
+        fromPrice: fromMarket.current_price,
+        toPrice: 1,
+      },
+    ],
+    { session }
+  );
 
-  portfolio: {
-    symbol: market.symbol.toUpperCase(),
+  await session.commitTransaction();
+  session.endSession();
 
-    amount: portfolio.amount,
+  return NextResponse.json({
+    success: true,
+    balance: user.balance,
+  });
+}
 
-    currentPrice,
+throw new Error(
+  "Crypto to crypto conversion is coming soon."
+);   
 
-    logo: market.image,
-  },
-});
 } catch (error) {
   await session.abortTransaction();
 

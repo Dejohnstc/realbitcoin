@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -420,72 +420,80 @@ cursor-pointer
     </div>
   ) : (
     portfolio.map((asset) => (
-      <div
-        key={asset._id}
-        className="rounded-2xl bg-[#131A2A] border border-gray-800 p-5 hover:border-cyan-500 hover:bg-[#182136] transition-all duration-300"
-      >
-        <div className="flex items-center justify-between">
+      <Link
+  key={asset._id}
+  href={`/dashboard/assets/${asset.assetSymbol.toLowerCase()}`}
+  className="block"
+>
+  <div className="rounded-2xl border border-gray-800 bg-[#131A2A] p-5 transition-all duration-300 hover:border-cyan-500 hover:bg-[#182136]">
 
-          <div className="flex items-center gap-4">
+    <div className="flex items-center justify-between">
 
-            <img
-              src={asset.logo}
-              alt={asset.assetSymbol}
-              className="w-12 h-12 rounded-full border border-gray-700"
-            />
+      <div className="flex items-center gap-4">
 
-            <div>
+        <img
+          src={asset.logo}
+          alt={asset.assetSymbol}
+          className="h-12 w-12 rounded-full"
+        />
 
-              <div className="flex items-center gap-2">
+        <div>
 
-                <h3 className="text-lg font-bold">
-                  {asset.assetSymbol}
-                </h3>
+          <div className="flex items-center gap-2">
 
-                {asset.isLaunchToken && (
-                  <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-[10px] font-semibold text-yellow-400 border border-yellow-500/30">
-                    LAUNCHPAD
-                  </span>
-                )}
+            <p className="font-bold text-lg">
+              {asset.assetSymbol}
+            </p>
 
-              </div>
-
-              <p className="mt-1 text-sm text-gray-400">
-                {asset.amount.toLocaleString()} {asset.assetSymbol}
-              </p>
-
-            </div>
+            {asset.isLaunchToken && (
+              <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-xs text-yellow-400">
+                Launchpad
+              </span>
+            )}
 
           </div>
 
-          <div className="text-right">
-
-            <p className="text-xl font-bold">
-              {hideBalance
-                ? "****"
-                : `$${asset.value.toLocaleString(undefined, {
-                    maximumFractionDigits: 2,
-                  })}`}
-            </p>
-
-            <p
-              className={`mt-1 text-sm font-medium ${
-                asset.profit >= 0
-                  ? "text-green-400"
-                  : "text-red-400"
-              }`}
-            >
-              {asset.profit >= 0 ? "+" : ""}
-              {asset.profitPercent.toFixed(2)}%
-            </p>
-
-          </div>
+          <p className="text-sm text-gray-400">
+            {asset.amount.toLocaleString(undefined, {
+              maximumFractionDigits: 8,
+            })}
+          </p>
 
         </div>
+
       </div>
+
+      <div className="text-right">
+
+        <p className="text-xl font-bold">
+          {hideBalance
+            ? "****"
+            : `$${asset.value.toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              })}`}
+        </p>
+
+        <p
+          className={`text-sm ${
+            asset.profit >= 0
+              ? "text-green-400"
+              : "text-red-400"
+          }`}
+        >
+          {asset.profit >= 0 ? "+" : ""}
+          {asset.profitPercent.toFixed(2)}%
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+</Link>
     ))
   )}
 </div>
+
 <LaunchpadHoldings
   items={reservations}
 />

@@ -19,8 +19,11 @@ export default function ConvertPage() {
   const [markets, setMarkets] = useState<Market[]>([]);
   const [selected, setSelected] = useState<Market | null>(null);
 
-  const [usd, setUsd] = useState("");
+const [fromAsset, setFromAsset] = useState("USD");
 
+const [toAsset, setToAsset] = useState("BTC");
+
+const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState(0);
 
   const [loading, setLoading] = useState(false);
@@ -71,14 +74,18 @@ const [successData, setSuccessData] = useState({
   }
 
   const receive = useMemo(() => {
-    if (!selected) return 0;
+  if (!selected) return 0;
 
-    const value = Number(usd);
+  const value = Number(amount);
 
-    if (!value) return 0;
+  if (!value) return 0;
 
+  if (fromAsset === "USD") {
     return value / selected.current_price;
-  }, [usd, selected]);
+  }
+
+  return value * selected.current_price;
+}, [amount, selected, fromAsset]);
 
  async function convert() {
   if (!selected) return;
@@ -96,10 +103,11 @@ const [successData, setSuccessData] = useState({
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        symbol: selected.symbol.toUpperCase(),
-        usdAmount: Number(usd),
-      }),
+   body: JSON.stringify({
+  fromAsset,
+  toAsset,
+  amount: Number(amount),
+}),
     });
 
     const data = await res.json();
@@ -112,13 +120,13 @@ const [successData, setSuccessData] = useState({
     setSuccessData({
       coin: selected.name,
       amount: receive,
-      usd: Number(usd),
+      usd: Number(amount),
       balance: data.balance,
     });
 
     setBalance(data.balance);
     setShowSuccess(true);
-    setUsd("");
+    setAmount("");
 
   } catch (error) {
     console.error(error);
@@ -135,7 +143,7 @@ const [successData, setSuccessData] = useState({
       <div className="rounded-3xl bg-[#131A2A] border border-gray-800 p-6">
 
         <h1 className="text-2xl font-bold">
-          Convert USD
+         Convert Assets
         </h1>
 
         <p className="mt-2 text-gray-400">
@@ -273,15 +281,19 @@ const [successData, setSuccessData] = useState({
 
   <input
     type="number"
-    value={usd}
-    onChange={(e) => setUsd(e.target.value)}
+   value={amount}
+onChange={(e) => setAmount(e.target.value)}
     className="w-full rounded-xl border border-gray-700 bg-[#0B0F19] p-4 pr-20"
     placeholder="0.00"
   />
 
   <button
     type="button"
-    onClick={() => setUsd(balance.toString())}
+   onClick={() => {
+  if (fromAsset === "USD") {
+    setAmount(balance.toString());
+  }
+}}
     className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-cyan-500 px-3 py-1 text-xs font-bold text-black"
   >
     MAX
@@ -302,12 +314,11 @@ const [successData, setSuccessData] = useState({
 
         </div>
 
-        <button
-          disabled={
-            loading ||
-            !usd ||
-            Number(usd) <= 0
-          }
+       <button disabled={
+  loading ||
+  !amount ||
+  Number(amount) <= 0
+}
           onClick={convert}
           className="mt-6 w-full rounded-xl bg-cyan-500 py-4 font-bold text-black hover:bg-cyan-400 disabled:opacity-40"
         >
