@@ -269,156 +269,218 @@ cursor-pointer
           {hideBalance ? "****" : `≈ ${totalBTC.toFixed(8)} BTC`}
         </p>
 
-        <div className="flex justify-between mt-5 text-sm">
-          <div>
-            <p className="text-gray-400">Available</p>
-            <p>
-              {hideBalance ? "****" : `${available.toFixed(2)} USD`}
-            </p>
-          </div>
+       <div className="grid grid-cols-3 gap-3 mt-6">
 
-          <div>
-            <p className="text-gray-400">In Use</p>
-            <p>
-              {hideBalance ? "****" : `${locked.toFixed(2)} USD`}
-            </p>
-          </div>
-          <div>
-  <p className="text-gray-400">
-    Launchpad
-  </p>
+  <div className="bg-[#1A2235] rounded-xl p-3 text-center">
+    <p className="text-xs text-gray-400">
+      Available
+    </p>
 
-  <p>
-    {hideBalance
-      ? "****"
-      : `${launchpadReserved.toFixed(
-          2
-        )} USD`}
-  </p>
+    <p className="mt-2 font-bold">
+      {hideBalance
+        ? "****"
+        : `$${available.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })}`}
+    </p>
+  </div>
+
+  <div className="bg-[#1A2235] rounded-xl p-3 text-center">
+    <p className="text-xs text-gray-400">
+      Locked
+    </p>
+
+    <p className="mt-2 font-bold text-yellow-400">
+      {hideBalance
+        ? "****"
+        : `$${locked.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })}`}
+    </p>
+  </div>
+
+  <div className="bg-[#1A2235] rounded-xl p-3 text-center">
+    <p className="text-xs text-gray-400">
+      Launchpad
+    </p>
+
+    <p className="mt-2 font-bold text-cyan-400">
+      {hideBalance
+        ? "****"
+        : `$${launchpadReserved.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })}`}
+    </p>
+  </div>
+
 </div>
-          <div className="grid grid-cols-2 gap-3 mt-5"> <div className="bg-[#1A2235] p-3 rounded-xl"> <p className="text-xs text-gray-400"> Active Investments </p>
 
-<p className="text-lg font-bold text-yellow-400">
-  {summary?.activeInvestments ?? 0}
-</p>
+<div className="grid grid-cols-2 gap-3 mt-4">
+
+  <div className="bg-[#1A2235] rounded-xl p-4">
+    <p className="text-xs text-gray-400">
+      Active Investments
+    </p>
+
+    <p className="mt-2 text-2xl font-bold text-yellow-400">
+      {summary?.activeInvestments ?? 0}
+    </p>
+  </div>
+
+  <div className="bg-[#1A2235] rounded-xl p-4">
+    <p className="text-xs text-gray-400">
+      Monthly Return
+    </p>
+
+    <p className="mt-2 text-2xl font-bold text-green-400">
+      +5.42%
+    </p>
+  </div>
 
 </div>
-
-<div className="bg-[#1A2235] p-3 rounded-xl"> <p className="text-xs text-gray-400"> Monthly Return </p>
-
-<p className="text-lg font-bold text-green-400">
-  +5.42%
-</p>
-
-</div> </div>
-        </div>
-      </div>
+</div>
 
       {/* ACTIONS */}
-      <div className="flex justify-between mb-8">
-        {[
-          {
-            name: "Deposit",
-            icon: ArrowDownLeft,
-            path: "/dashboard/deposit",
-            color: "bg-green-500",
-          },
-          {
-            name: "Withdraw",
-            icon: ArrowUpRight,
-            path: "/dashboard/withdraw",
-            color: "bg-red-500",
-          },
-          {
-            name: "Transfer",
-            icon: Repeat,
-            path: "/dashboard",
-            color: "bg-blue-500",
-          },
-          {
-            name: "Convert",
-            icon: RefreshCcw,
-            path: "/dashboard",
-            color: "bg-yellow-400 text-black",
-          },
-        ].map((btn, i) => {
-          const Icon = btn.icon;
+      {/* QUICK ACTIONS */}
 
-          return (
-            <button
-              key={i}
-              onClick={() => router.push(btn.path)}
-              className="flex flex-col items-center gap-2"
-            >
-              <div
-                className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg ${btn.color}`}
-              >
-                <Icon size={20} />
-              </div>
+<div className="mb-8">
 
-              <p className="text-xs text-gray-300">{btn.name}</p>
-            </button>
-          );
-        })}
-      </div>
-<div className="flex justify-between items-center mb-4"> <h2 className="font-semibold"> Market Assets </h2>
+  <h2 className="mb-4 text-lg font-bold">
+    Quick Actions
+  </h2>
 
-<span className="text-gray-400 text-sm"> {markets.length} Assets </span> </div>
+  <div className="grid grid-cols-2 gap-4">
+
+    {[
+      {
+        name: "Deposit",
+        icon: ArrowDownLeft,
+        path: "/dashboard/deposit",
+        color: "from-green-500 to-green-600",
+      },
+      {
+        name: "Withdraw",
+        icon: ArrowUpRight,
+        path: "/dashboard/withdraw",
+        color: "from-red-500 to-red-600",
+      },
+      {
+        name: "Transfer",
+        icon: Repeat,
+        path: "/dashboard/transfer",
+        color: "from-blue-500 to-cyan-500",
+      },
+      {
+        name: "Convert",
+        icon: RefreshCcw,
+        path: "/dashboard/convert",
+        color: "from-yellow-400 to-orange-400",
+        text: "text-black",
+      },
+    ].map((btn) => {
+      const Icon = btn.icon;
+
+      return (
+        <button
+          key={btn.name}
+          onClick={() => router.push(btn.path)}
+          className={`
+            rounded-2xl
+            p-5
+            bg-gradient-to-r
+            ${btn.color}
+            ${btn.text ?? "text-white"}
+            shadow-lg
+            hover:scale-[1.03]
+            active:scale-95
+            transition-all
+          `}
+        >
+          <div className="flex flex-col items-center">
+
+            <Icon size={28} />
+
+            <p className="mt-3 font-semibold">
+              {btn.name}
+            </p>
+
+          </div>
+        </button>
+      );
+    })}
+
+  </div>
+
+</div>
       {/* ASSETS */}
     <div className="space-y-4">
   {portfolio.length === 0 ? (
-    <div className="bg-[#131A2A] p-6 rounded-xl text-center text-gray-400">
+    <div className="rounded-2xl bg-[#131A2A] border border-gray-800 p-8 text-center text-gray-400">
       No crypto assets yet
     </div>
   ) : (
     portfolio.map((asset) => (
       <div
         key={asset._id}
-        className="flex justify-between items-center bg-[#131A2A] p-4 rounded-xl hover:bg-[#1A2235] transition-all"
+        className="rounded-2xl bg-[#131A2A] border border-gray-800 p-5 hover:border-cyan-500 hover:bg-[#182136] transition-all duration-300"
       >
-        <div className="flex items-center gap-3">
-          <img
-            src={asset.logo}
-            alt={asset.assetSymbol}
-            className="w-8 h-8 rounded-full"
-          />
+        <div className="flex items-center justify-between">
 
-          <div>
-            <p className="font-semibold">
-              {asset.assetSymbol}
+          <div className="flex items-center gap-4">
 
-              {asset.isLaunchToken && (
-                <span className="ml-2 text-xs text-yellow-400">
-                  Launchpad
-                </span>
-              )}
-            </p>
+            <img
+              src={asset.logo}
+              alt={asset.assetSymbol}
+              className="w-12 h-12 rounded-full border border-gray-700"
+            />
 
-            <p className="text-xs text-gray-400">
-              {asset.amount.toLocaleString()} {asset.assetSymbol}
-            </p>
+            <div>
+
+              <div className="flex items-center gap-2">
+
+                <h3 className="text-lg font-bold">
+                  {asset.assetSymbol}
+                </h3>
+
+                {asset.isLaunchToken && (
+                  <span className="rounded-full bg-yellow-500/20 px-2 py-1 text-[10px] font-semibold text-yellow-400 border border-yellow-500/30">
+                    LAUNCHPAD
+                  </span>
+                )}
+
+              </div>
+
+              <p className="mt-1 text-sm text-gray-400">
+                {asset.amount.toLocaleString()} {asset.assetSymbol}
+              </p>
+
+            </div>
+
           </div>
-        </div>
 
-        <div className="text-right">
-          <p>
-            {hideBalance
-              ? "****"
-              : `$${asset.value.toLocaleString(undefined, {
-                  maximumFractionDigits: 2,
-                })}`}
-          </p>
+          <div className="text-right">
 
-          <p
-            className={`text-xs ${
-              asset.profit >= 0
-                ? "text-green-400"
-                : "text-red-400"
-            }`}
-          >
-            {asset.profit >= 0 ? "+" : ""}
-            {asset.profitPercent.toFixed(2)}%
-          </p>
+            <p className="text-xl font-bold">
+              {hideBalance
+                ? "****"
+                : `$${asset.value.toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}`}
+            </p>
+
+            <p
+              className={`mt-1 text-sm font-medium ${
+                asset.profit >= 0
+                  ? "text-green-400"
+                  : "text-red-400"
+              }`}
+            >
+              {asset.profit >= 0 ? "+" : ""}
+              {asset.profitPercent.toFixed(2)}%
+            </p>
+
+          </div>
+
         </div>
       </div>
     ))

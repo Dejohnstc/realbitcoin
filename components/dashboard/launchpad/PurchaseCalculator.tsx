@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
+import ReservationSuccessModal from "./ReservationSuccessModal";
 interface PurchaseCalculatorProps {
   coinId: string;
 
@@ -37,7 +37,13 @@ export default function PurchaseCalculator({
 
   const [usd, setUsd] = useState("");
   const [coins, setCoins] = useState("");
+const [showSuccess, setShowSuccess] = useState(false);
 
+const [successData, setSuccessData] = useState({
+  coins: 0,
+  paid: 0,
+  balance: 0,
+});
  function handleUsdChange(value: string) {
   setUsd(value);
 
@@ -106,7 +112,7 @@ function handleCoinsChange(value: string) {
     const token = localStorage.getItem("user_token");
 
     if (!token) {
-      alert("Please login.");
+      
       return;
     }
 
@@ -133,30 +139,35 @@ function handleCoinsChange(value: string) {
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data.message);
+      
       return;
     }
 
-    alert("Reservation successful!");
+    setSuccessData({
+  coins: Number(coins),
+  paid: Number(usd),
+  balance: data.balance,
+});
 
-    onSuccess?.(
-      data.balance,
-      data.reservedSupply
-    );
+setShowSuccess(true);
 
-    setUsd("");
-    setCoins("");
+onSuccess?.(
+  data.balance,
+  data.reservedSupply
+);
+
+setUsd("");
+setCoins("");
 
   } catch (error) {
 
-    console.error(error);
-
-    alert("Reservation failed.");
+    
 
   }
 }
 
   return (
+    <>
     <div className="rounded-2xl bg-[#131A2A] border border-gray-800 p-6">
 
       <h2 className="text-2xl font-bold mb-6">
@@ -247,19 +258,28 @@ function handleCoinsChange(value: string) {
         </div>
       )}
 
-      <button
+  <button
   type="button"
   disabled={!!validation}
-  onClick={() => {
-    alert("Reserve clicked");
-    reserveAllocation();
-  }}
+  onClick={reserveAllocation}
   className="mt-6 w-full rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 py-4 text-black font-bold"
 >
   Reserve Allocation
 </button>
 
+
+
+ 
     </div>
+     <ReservationSuccessModal
+    open={showSuccess}
+    symbol={symbol}
+    coins={successData.coins}
+    paid={successData.paid}
+    balance={successData.balance}
+    onClose={() => setShowSuccess(false)}
+  />
+</>
   );
 }
 

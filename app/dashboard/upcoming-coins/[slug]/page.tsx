@@ -333,53 +333,52 @@ async function loadUser() {
 
           </Card>
 
-          {coin.reservationEnabled && (
-  <PurchaseCalculator
-    coinId={coin._id}
-    salePrice={coin.salePrice}
-    minPurchase={coin.minPurchase}
-    maxPurchase={coin.maxPurchase}
-    balance={balance}
-    remainingSupply={
-      coin.totalSupply - coin.reservedSupply
-    }
-    symbol={coin.symbol}
-   onSuccess={(newBalance, reservedSupply) => {
-  setBalance(newBalance);
+   {coin.reservationEnabled ? (
+  coin.totalSupply - coin.reservedSupply > 0 ? (
+    <PurchaseCalculator
+      coinId={coin._id}
+      salePrice={coin.salePrice}
+      minPurchase={coin.minPurchase}
+      maxPurchase={coin.maxPurchase}
+      balance={balance}
+      remainingSupply={
+        coin.totalSupply - coin.reservedSupply
+      }
+      symbol={coin.symbol}
+      onSuccess={(newBalance, reservedSupply) => {
+        setBalance(newBalance);
 
-  setCoin((prev) => {
-    if (!prev) return prev;
+        setCoin((prev) =>
+          prev
+            ? {
+                ...prev,
+                reservedSupply,
+              }
+            : prev
+        );
+      }}
+    />
+  ) : (
+    <div className="rounded-2xl bg-red-500/10 border border-red-500/30 p-8 text-center">
+      <h2 className="text-3xl font-bold text-red-400">
+        🔥 SOLD OUT
+      </h2>
 
-    const remainingSupply =
-      prev.totalSupply - reservedSupply;
+      <p className="mt-3 text-gray-300">
+        All tokens for this launch have been reserved.
+      </p>
+    </div>
+  )
+) : (
+  <div className="rounded-2xl bg-yellow-500/10 border border-yellow-500/30 p-8 text-center">
+    <h2 className="text-2xl font-bold text-yellow-400">
+      Reservations Closed
+    </h2>
 
-    const soldPercentage =
-      Number(
-        (
-          (reservedSupply / prev.totalSupply) *
-          100
-        ).toFixed(2)
-      );
-
-    const raised =
-      Number(
-        (
-          reservedSupply *
-          prev.salePrice
-        ).toFixed(2)
-      );
-
-    return {
-      ...prev,
-      reservedSupply,
-      remainingSupply,
-      soldPercentage,
-      raised,
-      investors: prev.investors + 1,
-    };
-  });
-}}
-  />
+    <p className="mt-3 text-gray-300">
+      Reservations are currently unavailable.
+    </p>
+  </div>
 )}
 <LaunchProgress
   totalSupply={coin.totalSupply}
