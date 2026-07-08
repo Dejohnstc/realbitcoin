@@ -50,15 +50,30 @@ const [drawerOpen, setDrawerOpen] = useState(false);
     loadCoins();
   }, []);
 
-  async function deleteCoin(id: string) {
-    if (!confirm("Delete this listing?")) return;
+ async function deleteCoin(id: string) {
+  if (!confirm("Delete this listing?")) return;
 
-    await fetch(`/api/admin/upcoming-coins/${id}`, {
+  try {
+    const res = await fetch(`/api/admin/upcoming-coins/${id}`, {
       method: "DELETE",
     });
 
-    loadCoins();
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.message || "Delete failed.");
+      return;
+    }
+
+    setCoins((prev) => prev.filter((coin) => coin._id !== id));
+
+    alert("Listing deleted successfully.");
+
+  } catch (error) {
+    console.error(error);
+    alert("Something went wrong.");
   }
+}
 
   const filtered = useMemo(() => {
     return coins.filter((coin) => {
