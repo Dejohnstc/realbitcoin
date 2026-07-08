@@ -11,13 +11,19 @@ export default function LaunchProgress({
   reservedSupply,
   investors,
 }: LaunchProgressProps) {
-  const percentage =
-    totalSupply > 0
-      ? Math.min(
-          (reservedSupply / totalSupply) * 100,
-          100
-        )
-      : 0;
+  const actualPercentage =
+  totalSupply > 0
+    ? Math.min(
+        (reservedSupply / totalSupply) * 100,
+        100
+      )
+    : 0;
+
+// Show a tiny visible bar when reservations exist
+const displayPercentage =
+  actualPercentage > 0 && actualPercentage < 0.5
+    ? 0.5
+    : actualPercentage;
 
   return (
     <div className="rounded-2xl bg-[#131A2A] border border-gray-800 p-6">
@@ -29,7 +35,9 @@ export default function LaunchProgress({
         </h2>
 
         <span className="text-cyan-400 font-bold">
-          {percentage.toFixed(1)}%
+          {actualPercentage > 0 && actualPercentage < 0.01
+  ? "<0.01%"
+  : `${actualPercentage.toFixed(2)}%`}
         </span>
 
       </div>
@@ -39,8 +47,8 @@ export default function LaunchProgress({
         <div
           className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-700"
           style={{
-            width: `${percentage}%`,
-          }}
+  width: `${displayPercentage}%`,
+}}
         />
 
       </div>

@@ -20,13 +20,18 @@ export default function LaunchStats({
 
   const raised = reservedSupply * salePrice;
 
-  const progress =
-    totalSupply > 0
-      ? Math.min(
-          (reservedSupply / totalSupply) * 100,
-          100
-        )
-      : 0;
+  const actualProgress =
+  totalSupply > 0
+    ? Math.min(
+        (reservedSupply / totalSupply) * 100,
+        100
+      )
+    : 0;
+
+const displayProgress =
+  actualProgress > 0 && actualProgress < 0.5
+    ? 0.5
+    : actualProgress;
 
   return (
     <div className="rounded-2xl bg-[#131A2A] border border-gray-800 p-6">
@@ -76,7 +81,9 @@ export default function LaunchStats({
           </span>
 
           <span className="font-semibold text-cyan-400">
-            {progress.toFixed(2)}%
+            {actualProgress > 0 && actualProgress < 0.01
+  ? "<0.01%"
+  : `${actualProgress.toFixed(2)}%`}
           </span>
 
         </div>
@@ -86,7 +93,7 @@ export default function LaunchStats({
           <div
             className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 transition-all duration-700"
             style={{
-              width: `${progress}%`,
+              width: `${displayProgress}%`,
             }}
           />
 

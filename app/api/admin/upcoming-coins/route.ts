@@ -164,15 +164,18 @@ export async function POST(req: NextRequest) {
       success: true,
       coin,
     });
-  } catch (error) {
-    console.error(error);
+ } catch (error) {
+  console.error("CREATE COIN ERROR:", error);
 
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Unable to create listing.",
-      },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to create listing.",
+    },
+    { status: 500 }
+  );
+}
 }
