@@ -112,7 +112,11 @@ export async function POST(req: Request): Promise<NextResponse> {
       { upsert: true, new: true }
     );
 
-    await sendOTP(email, otp);
+   try {
+  await sendOTP(email, otp);
+} catch (error) {
+  console.error("Failed to send OTP:", error);
+}
 
     return NextResponse.json({
       message: "OTP sent to email",

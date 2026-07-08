@@ -3,6 +3,8 @@ import Investment from "@/models/Investment";
 import User from "@/models/User";
 import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import Notification from "@/models/Notification";
+import { sendInvestmentCompletedEmail } from "@/lib/mail";
 
 export async function POST(req: Request) {
   try {
@@ -72,12 +74,41 @@ export async function POST(req: Request) {
 
         completedCount++;
 
-        // ✅ Create notification for user (optional)
-        // await Notification.create({
-        //   userId: inv.userId,
-        //   type: "investment",
-        //   message: `Your investment of $${inv.amount} has been completed. You earned $${profitAmount.toFixed(2)} profit.`,
-        // });
+       // ===================================
+// CREATE NOTIFICATION
+// ===================================
+
+await Notification.create({
+  userId: inv.userId,
+  type: "investment",
+  message:
+    `Investment Completed\n\n` +
+    `Your ${inv.plan} has successfully matured.\n\n` +
+    `Investment: $${inv.amount.toLocaleString()}\n` +
+    `Profit Earned: $${profitAmount.toLocaleString()}\n` +
+    `Total Returned: $${totalReturn.toLocaleString()}\n\n` +
+    `The funds have been credited to your available balance.`,
+});
+// ===================================
+// SEND EMAIL
+// ===================================
+
+if (userExists.email) {
+  try {
+    await sendInvestmentCompletedEmail(
+      userExists.email,
+      inv.amount,
+      profitAmount,
+      totalReturn,
+      inv.plan
+    );
+  } catch (error) {
+    console.error(
+      "Investment completion email failed:",
+      error
+    );
+  }
+}
 
       } catch (error) {
         console.error(`Error processing investment ${inv._id}:`, error);

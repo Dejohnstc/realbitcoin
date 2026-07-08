@@ -5,11 +5,11 @@ import Earning from "@/models/Earning";
 import Notification from "@/models/Notification";
 import { verifyToken } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { sendWithdrawalRejectedEmail } from "@/lib/mail";
 
 interface Body {
   amount: number;
   wallet?: string;
-
   coin?: string;
   network?: string;
 
@@ -20,11 +20,14 @@ interface Body {
   };
 }
 
-export async function POST(req: Request): Promise<NextResponse> {
+export async function POST(
+  req: Request
+): Promise<NextResponse> {
   try {
     await connectDB();
 
-    const authHeader = req.headers.get("authorization");
+    const authHeader =
+      req.headers.get("authorization");
 
     if (!authHeader) {
       return NextResponse.json(
@@ -34,6 +37,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     const token = authHeader.split(" ")[1];
+
     const decoded = verifyToken(token);
 
     if (!decoded?.userId) {
@@ -58,16 +62,28 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(
+      decoded.userId
+    );
 
-    if (!user || user.balance < amount) {
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    if (user.balance < amount) {
       return NextResponse.json(
         { error: "Insufficient balance" },
         { status: 400 }
       );
     }
 
-    // 🔒 BLOCK WITHDRAWAL WHILE EARNING ACTIVE
+    // ==================================
+    // BLOCK WITHDRAWAL DURING ACTIVE TRADE
+    // ==================================
+
     const earning = await Earning.findOne({
       userId: decoded.userId,
       status: "active",
@@ -75,12 +91,14 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     if (earning) {
       const remainingTime =
-        new Date(earning.endTime).getTime() - Date.now();
+        new Date(earning.endTime).getTime() -
+        Date.now();
 
       const daysLeft = Math.max(
         1,
         Math.ceil(
-          remainingTime / (24 * 60 * 60 * 1000)
+          remainingTime /
+            (24 * 60 * 60 * 1000)
         )
       );
 
@@ -94,11 +112,16 @@ export async function POST(req: Request): Promise<NextResponse> {
         {
           error: `Withdrawal locked. ${daysLeft} day(s) remaining.`,
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
-    // 🔥 DETERMINE METHOD
+    // ==================================
+    // DETERMINE WITHDRAW METHOD
+    // ==================================
+
     let method:
       | "CRYPTO"
       | "BANK"
@@ -113,14 +136,20 @@ export async function POST(req: Request): Promise<NextResponse> {
       method = "MUKURU";
     }
 
-    // 🔥 GENERATE TRANSACTION ID
+    // ==================================
+    // TRANSACTION INFO
+    // ==================================
+
     const transactionId =
       "TX" +
       Date.now() +
-      Math.floor(Math.random() * 10000);
+      Math.floor(
+        Math.random() * 10000
+      );
 
-    // 🔥 OPTIONAL FEE SYSTEM
-    const fee = Number((amount * 0.02).toFixed(2));
+    const fee = Number(
+      (amount * 0.02).toFixed(2)
+    );
 
     const netAmount = Number(
       (amount - fee).toFixed(2)
@@ -138,55 +167,101 @@ export async function POST(req: Request): Promise<NextResponse> {
       netAmount,
     });
 
-    // ✅ CREATE WITHDRAWAL
-    const withdraw = await Withdraw.create({
-      userId: decoded.userId,
+    // ==================================
+    // CREATE WITHDRAWAL
+    // ==================================
 
-      amount,
+    const withdraw =
+      await Withdraw.create({
+        userId: decoded.userId,
 
-      method,
+        amount,
 
-      wallet: wallet || "",
+        method,
 
-      coin: coin || "",
-      network: network || "",
+        wallet: wallet || "",
 
-      accountName: meta?.accountName || "",
-      bankName: meta?.bankName || "",
-      country: meta?.country || "",
+        coin: coin || "",
 
-      transactionId,
-      fee,
-      netAmount,
-    });
+        network: network || "",
 
-    // 🔔 PROFESSIONAL NOTIFICATION
+        accountName:
+          meta?.accountName || "",
+
+        bankName:
+          meta?.bankName || "",
+
+        country:
+          meta?.country || "",
+
+        transactionId,
+
+        fee,
+
+        netAmount,
+      });
+
+    // ==================================
+    // USER NOTIFICATION
+    // ==================================
+
     await Notification.create({
       userId: decoded.userId,
+
       type: "withdraw",
+
       message:
         `Withdrawal request submitted.\n\n` +
         `Amount: $${amount.toLocaleString()}\n` +
         `Transaction ID: ${transactionId}\n` +
         `Method: ${method}\n` +
         `Status: Pending Review`,
+
       meta: {
         amount,
         transactionId,
       },
     });
 
+    // ==================================
+    // SEND EMAIL
+    // ==================================
+
+    try {
+      await sendWithdrawalRejectedEmail(
+        user.email,
+        amount,
+        transactionId,
+        method
+      );
+    } catch (error) {
+      console.error(
+        "Withdrawal request email failed:",
+        error
+      );
+    }
+
     return NextResponse.json({
-      message: "Withdrawal request submitted",
+      success: true,
+      message:
+        "Withdrawal request submitted",
       withdraw,
     });
 
   } catch (error) {
-    console.error("WITHDRAW ERROR:", error);
+    console.error(
+      "WITHDRAW ERROR:",
+      error
+    );
 
     return NextResponse.json(
-      { error: "Withdrawal failed" },
-      { status: 500 }
+      {
+        success: false,
+        error: "Withdrawal failed",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }

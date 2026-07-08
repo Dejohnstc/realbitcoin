@@ -171,6 +171,75 @@ export async function sendWelcomeEmail(
 }
 
 // =============================
+// ✅ DEPOSIT RECEIVED EMAIL
+// =============================
+export async function sendDepositReceivedEmail(
+  email: string,
+  amount: number
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Deposit Received ⏳",
+
+      html: emailTemplate({
+        title: "Deposit Received",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            We've received your deposit request.
+          </p>
+
+          <div style="
+            margin:35px auto;
+            max-width:320px;
+            background:#fff7ed;
+            border:2px solid #f59e0b;
+            border-radius:12px;
+            padding:22px;
+            text-align:center;
+          ">
+
+            <div style="color:#777;">
+              Submitted Amount
+            </div>
+
+            <div style="
+              font-size:34px;
+              color:#f59e0b;
+              font-weight:bold;
+            ">
+              $${amount.toLocaleString()}
+            </div>
+
+          </div>
+
+          <p>
+            Our finance team is verifying your payment.
+            Once approved, your account balance will
+            automatically update.
+          </p>
+
+          <p>
+            Estimated review time:
+            <strong>5 minutes to 2 hours.</strong>
+          </p>
+        `,
+
+        buttonText: "View Deposits",
+
+        buttonLink: `${BASE_URL}/dashboard/deposit`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
 // ✅ DEPOSIT APPROVED EMAIL
 // =============================
 export async function sendDepositEmail(
@@ -261,6 +330,72 @@ export async function sendDepositEmail(
     });
   } catch (error) {
     console.error("❌ Deposit email FAILED:", error);
+  }
+}
+// =============================
+// ✅ WITHDRAWAL REQUESTED EMAIL
+// =============================
+export async function sendWithdrawalRejectedEmail(
+  email: string,
+  amount: number,
+  transactionId: string,
+  method: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Withdrawal Request Received",
+
+      html: emailTemplate({
+        title: "Withdrawal Submitted",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Your withdrawal request has been received.
+          </p>
+
+          <div style="
+            margin:30px auto;
+            text-align:center;
+            padding:20px;
+            background:#eff6ff;
+            border:2px solid #3b82f6;
+            border-radius:12px;
+          ">
+
+            <div>Requested Amount</div>
+
+            <div style="
+              font-size:34px;
+              font-weight:bold;
+              color:#2563eb;
+            ">
+              $${amount.toLocaleString()}
+            </div>
+
+          </div>
+
+          <p>
+            Your request is currently awaiting approval
+            from our finance department.
+          </p>
+
+          <p>
+            You'll receive another email immediately after
+            approval.
+          </p>
+        `,
+
+        buttonText: "View Withdrawal",
+
+        buttonLink: `${BASE_URL}/dashboard/withdraw`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -419,5 +554,598 @@ export async function sendWithdrawEmail(
       method,
       error,
     });
+  }
+}
+
+// =============================
+// ✅ PASSWORD RESET EMAIL
+// =============================
+export async function sendPasswordResetEmail(
+  email: string,
+  resetLink: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Reset Your CoinlyBitora Password 🔐",
+
+      html: emailTemplate({
+        title: "Password Reset Request",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            We received a request to reset the password
+            for your <strong>CoinlyBitora</strong> account.
+          </p>
+
+          <p>
+            If you requested this password reset,
+            click the button below to create a new password.
+          </p>
+
+          <div style="
+            margin-top:30px;
+            padding:18px;
+            background:#FEFCE8;
+            border-left:4px solid #D4AF37;
+            border-radius:10px;
+            color:#555;
+          ">
+
+            <strong>Security Notice</strong>
+
+            <br><br>
+
+            • This reset link expires in <strong>30 minutes</strong>.<br>
+            • It can only be used once.<br>
+            • If you didn't request this, simply ignore this email.
+
+          </div>
+
+          <p style="
+            margin-top:25px;
+            color:#777;
+            font-size:13px;
+          ">
+            For your security, never share your password
+            or this reset link with anyone.
+          </p>
+        `,
+
+        buttonText: "Reset Password",
+
+        buttonLink: resetLink,
+      }),
+    });
+  } catch (error) {
+    console.error("❌ Password reset email FAILED:", error);
+  }
+}
+
+// =============================
+// ✅ PASSWORD CHANGED EMAIL
+// =============================
+export async function sendPasswordChangedEmail(
+  email: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Password Successfully Updated 🔐",
+
+      html: emailTemplate({
+        title: "Password Updated",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Your CoinlyBitora account password has been
+            successfully changed.
+          </p>
+
+          <div style="
+            margin:30px 0;
+            padding:20px;
+            background:#ECFDF5;
+            border-left:4px solid #22c55e;
+            border-radius:10px;
+            color:#166534;
+          ">
+
+            ✔ Password Updated Successfully
+
+          </div>
+
+          <p>
+            If you made this change, no further action
+            is required.
+          </p>
+
+          <p style="
+            color:#777;
+            font-size:13px;
+          ">
+            If you did NOT change your password,
+            secure your account immediately and
+            contact CoinlyBitora Support.
+          </p>
+        `,
+
+        buttonText: "Open Dashboard",
+
+        buttonLink: `${BASE_URL}/dashboard`,
+      }),
+    });
+  } catch (error) {
+    console.error("Password changed email FAILED:", error);
+  }
+}
+
+// =============================
+// ✅ LOGIN ALERT EMAIL
+// =============================
+export async function sendLoginAlertEmail(
+  email: string,
+  device: string,
+  ip: string,
+  location: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "New Login Detected 🔒",
+
+      html: emailTemplate({
+        title: "Security Alert",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            We detected a new login to your CoinlyBitora account.
+          </p>
+
+          <table
+            width="100%"
+            cellpadding="10"
+            style="
+              margin:30px 0;
+              background:#f8fafc;
+              border-radius:10px;
+              border:1px solid #e5e7eb;
+            ">
+
+            <tr>
+              <td><strong>Device</strong></td>
+              <td align="right">${device}</td>
+            </tr>
+
+            <tr>
+              <td><strong>IP Address</strong></td>
+              <td align="right">${ip}</td>
+            </tr>
+
+            <tr>
+              <td><strong>Location</strong></td>
+              <td align="right">${location}</td>
+            </tr>
+
+            <tr>
+              <td><strong>Time</strong></td>
+              <td align="right">${new Date().toLocaleString()}</td>
+            </tr>
+
+          </table>
+
+          <p>
+            If this was you, no action is required.
+          </p>
+
+          <p style="color:#dc2626;font-size:13px;">
+            If you don't recognize this login,
+            change your password immediately.
+          </p>
+        `,
+
+        buttonText: "Secure My Account",
+
+        buttonLink: `${BASE_URL}/dashboard/security`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
+// ✅ INVESTMENT CREATED
+// =============================
+export async function sendInvestmentStartedEmail(
+  email: string,
+  amount: number,
+  plan: string,
+  roi: number,
+  duration: Date
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Investment Confirmed 📈",
+
+      html: emailTemplate({
+        title: "Investment Started",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Your investment has been successfully activated.
+          </p>
+
+          <table
+            width="100%"
+            cellpadding="12"
+            style="
+              margin:30px 0;
+              background:#f8fafc;
+              border-radius:10px;
+              border:1px solid #e5e7eb;
+            ">
+
+            <tr><td><strong>Plan</strong></td><td align="right">${plan}</td></tr>
+            <tr><td><strong>Investment</strong></td><td align="right">$${amount.toLocaleString()}</td></tr>
+            <tr><td><strong>ROI</strong></td><td align="right">${roi}%</td></tr>
+            <tr><td><strong>Duration</strong></td><td align="right">${duration}</td></tr>
+
+          </table>
+
+          <p>
+            Your investment is now earning returns.
+          </p>
+        `,
+
+        buttonText: "View Investment",
+
+        buttonLink: `${BASE_URL}/dashboard/investments`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
+// ✅ INVESTMENT COMPLETED
+// =============================
+export async function sendInvestmentCompletedEmail(
+  email: string,
+  amount: number,
+  profit: number,
+  total: number,
+  plan: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Investment Completed 🎉",
+
+      html: emailTemplate({
+        title: "Investment Completed",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Congratulations!
+            Your investment has matured successfully.
+          </p>
+
+          <table
+            width="100%"
+            cellpadding="12"
+            style="
+              margin:30px 0;
+              background:#f8fafc;
+              border-radius:10px;
+              border:1px solid #e5e7eb;
+            ">
+
+            <tr>
+              <td><strong>Principal</strong></td>
+              <td align="right">$${amount.toLocaleString()}</td>
+            </tr>
+
+            <tr>
+              <td><strong>Profit</strong></td>
+              <td align="right">$${profit.toLocaleString()}</td>
+            </tr>
+
+            <tr>
+              <td><strong>Total Returned</strong></td>
+              <td align="right">
+                <strong style="color:#16a34a;">
+                  $${(amount + profit).toLocaleString()}
+                </strong>
+              </td>
+            </tr>
+
+          </table>
+
+          <p>
+            Your earnings have been credited
+            to your account.
+          </p>
+        `,
+
+        buttonText: "View Portfolio",
+
+        buttonLink: `${BASE_URL}/dashboard/assets`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
+// ✅ KYC APPROVED EMAIL
+// =============================
+export async function sendKYCApprovedEmail(
+  email: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Identity Verification Approved ✅",
+
+      html: emailTemplate({
+        title: "Identity Verified",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Congratulations! Your identity verification has
+            been successfully approved.
+          </p>
+
+          <div style="
+            margin:30px 0;
+            padding:20px;
+            background:#ECFDF5;
+            border-left:4px solid #22c55e;
+            border-radius:10px;
+            color:#166534;
+          ">
+            ✔ KYC Approved Successfully
+          </div>
+
+          <p>
+            Your account now has full access to deposits,
+            withdrawals and all trading features.
+          </p>
+        `,
+
+        buttonText: "Go To Dashboard",
+
+        buttonLink: `${BASE_URL}/dashboard`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
+// ✅ KYC REJECTED EMAIL
+// =============================
+export async function sendKYCRejectedEmail(
+  email: string,
+  reason: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      to: [email],
+      subject: "Identity Verification Update",
+
+      html: emailTemplate({
+        title: "Verification Needs Attention",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Unfortunately we couldn't approve your
+            identity verification.
+          </p>
+
+          <div style="
+            margin:30px 0;
+            padding:20px;
+            background:#FEF2F2;
+            border-left:4px solid #DC2626;
+            border-radius:10px;
+            color:#991B1B;
+          ">
+
+            <strong>Reason</strong>
+
+            <br><br>
+
+            ${reason}
+
+          </div>
+
+          <p>
+            Please upload clearer documents and submit
+            your verification again.
+          </p>
+        `,
+
+        buttonText: "Resubmit Verification",
+
+        buttonLink: `${BASE_URL}/dashboard/profile`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
+// ✅ SUPPORT REPLY EMAIL
+// =============================
+export async function sendSupportReplyEmail(
+  email: string,
+  message: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora Support <support@obiresoffice.com>",
+      to: [email],
+      subject: "Support Response",
+
+      html: emailTemplate({
+        title: "Support Team Response",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Our support team has replied to your request.
+          </p>
+
+          <div style="
+            margin:30px 0;
+            padding:20px;
+            background:#F8FAFC;
+            border-radius:10px;
+            border:1px solid #E5E7EB;
+            line-height:30px;
+          ">
+
+            ${message}
+
+          </div>
+
+          <p>
+            If you have additional questions,
+            simply reply to this email.
+          </p>
+        `,
+
+        buttonText: "Contact Support",
+
+        buttonLink: `${BASE_URL}/support`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
+// ✅ ACCOUNT LOCKED EMAIL
+// =============================
+export async function sendAccountLockedEmail(
+  email: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora Security <security@obiresoffice.com>",
+      to: [email],
+      subject: "Account Temporarily Locked",
+
+      html: emailTemplate({
+        title: "Security Protection",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Your account has been temporarily locked
+            after multiple unsuccessful login attempts.
+          </p>
+
+          <div style="
+            margin:30px 0;
+            padding:20px;
+            background:#FEF2F2;
+            border-left:4px solid #DC2626;
+            border-radius:10px;
+          ">
+
+            This is an automatic security measure to
+            protect your account.
+
+          </div>
+
+          <p>
+            If this was not you,
+            change your password immediately.
+          </p>
+        `,
+
+        buttonText: "Secure Account",
+
+        buttonLink: `${BASE_URL}/forgot-password`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// =============================
+// ✅ EMAIL CHANGED
+// =============================
+export async function sendEmailChangedEmail(
+  email: string
+): Promise<void> {
+  try {
+    await safeSend({
+      from: "CoinlyBitora Security <security@obiresoffice.com>",
+      to: [email],
+      subject: "Email Address Updated",
+
+      html: emailTemplate({
+        title: "Email Updated",
+
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Your account email address has been
+            successfully updated.
+          </p>
+
+          <p>
+            Future account notifications will be
+            sent to this email address.
+          </p>
+
+          <p style="color:#dc2626;">
+            If you did not make this change,
+            contact support immediately.
+          </p>
+        `,
+
+        buttonText: "Review Security",
+
+        buttonLink: `${BASE_URL}/dashboard/security`,
+      }),
+    });
+  } catch (error) {
+    console.error(error);
   }
 }

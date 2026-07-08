@@ -2,6 +2,7 @@ import { connectDB } from "@/lib/mongodb";
 import Investment from "@/models/Investment";
 import User from "@/models/User";
 import { verifyToken } from "@/lib/auth";
+import { sendInvestmentStartedEmail } from "@/lib/mail";
 import { NextResponse } from "next/server";
 
 type InvestmentResponse = {
@@ -21,28 +22,28 @@ type InvestmentResponse = {
 
 const PLANS = {
   "Starter Plan": {
-    profit: 5,
+    profit: 230,
     durationMonths: 1,
-    min: 100,
-    max: 999,
+    min: 200,
+    max: 1999,
   },
   "Silver Plan": {
-    profit: 8,
-    durationMonths: 3,
-    min: 1000,
-    max: 4999,
+    profit: 248,
+    durationMonths: 1,
+    min:2000,
+    max: 9999,
   },
   "Gold Plan": {
-    profit: 12,
-    durationMonths: 6,
-    min: 5000,
-    max: 19999,
+    profit: 255,
+    durationMonths: 1,
+    min: 10000,
+    max: 99999,
   },
   "VIP Plan": {
-    profit: 18,
-    durationMonths: 12,
-    min: 20000,
-    max: 100000,
+    profit: 280,
+    durationMonths: 1,
+    min: 100000,
+    max: 1000000,
   },
 } as const;
 
@@ -107,19 +108,42 @@ export async function POST(req: Request) {
     await user.save();
 
     // ✅ Use startDate instead of createdAt
-    const investment = await Investment.create({
-      userId: String(decoded.userId),
+  // ✅ Create investment
+const investment = await Investment.create({
+  userId: String(decoded.userId),
+  amount,
+  plan,
+  profit: config.profit,
+  startDate,
+  endDate,
+  status: "active",
+});
+
+// ===================================
+// SEND INVESTMENT EMAIL
+// ===================================
+
+if (user.email) {
+  try {
+    
+    await sendInvestmentStartedEmail(
+      user.email,
       amount,
       plan,
-      profit: config.profit,
-      startDate,
-      endDate,
-      status: "active",
-    });
+      config.profit,
+      endDate
+    );
+  } catch (error) {
+    console.error(
+      "Investment email failed:",
+      error
+    );
+  }
+}
 
-    return NextResponse.json({
-      investment,
-    });
+return NextResponse.json({
+  investment,
+});
   } catch (error) {
     console.error("CREATE INVESTMENT ERROR:", error);
     return NextResponse.json(

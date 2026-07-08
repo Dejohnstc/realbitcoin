@@ -187,6 +187,10 @@ await withdraw.save({ session });
 await session.commitTransaction();
 session.endSession();
 
+// ===================================
+// SEND APPROVAL EMAIL
+// ===================================
+
 if (action === "approve") {
   try {
     await sendWithdrawEmail(
@@ -198,10 +202,10 @@ if (action === "approve") {
       withdraw.bankName,
       withdraw.accountNumber
     );
-  } catch (err) {
+  } catch (error) {
     console.error(
-      "❌ Withdraw email failed:",
-      err
+      "Withdraw approval email failed:",
+      error
     );
   }
 }

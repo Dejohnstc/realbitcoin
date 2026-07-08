@@ -8,16 +8,19 @@ const COMPANY = {
 
 interface EmailTemplateProps {
   title: string;
+  subtitle?: string;
   customerName?: string;
   content: string;
+  summary?: string;
   buttonText: string;
   buttonLink: string;
 }
-
 export function emailTemplate({
   title,
+  subtitle = "",
   customerName = "Customer",
   content,
+  summary = "",
   buttonText,
   buttonLink,
 }: EmailTemplateProps) {
@@ -43,7 +46,21 @@ padding:40px 0;
 background:#edf2f7;
 font-family:Arial,Helvetica,sans-serif;
 ">
+<div
+style="
+display:none;
+font-size:1px;
+color:#fff;
+line-height:1px;
+max-height:0;
+max-width:0;
+opacity:0;
+overflow:hidden;
+">
 
+${subtitle || title}
+
+</div>
 <table
 width="100%"
 cellpadding="0"
@@ -106,7 +123,7 @@ letter-spacing:6px;
 color:white;
 ">
 
-GLOBAL TRADING
+Digital Asset Exchange
 
 </div>
 
