@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, ChangeEvent, FormEvent } from "react";
+import {
+  useState,
+  useEffect,
+  ChangeEvent,
+  FormEvent,
+} from "react";
 import ImageUploader from "@/components/admin/ImageUploader";
 import ListingPreview from "./ListingPreview";
 
 interface CoinFormProps {
   onSuccess?: () => void;
+  coin?: Partial<FormData> & {
+  _id: string;
+  listingDate?: string;
+  reservationStart?: string;
+  reservationEnd?: string;
+};
+  isEditing?: boolean;
 }
 
 interface FormData {
@@ -56,6 +68,8 @@ interface FormData {
 
 export default function CoinForm({
   onSuccess,
+  coin,
+  isEditing = false,
 }: CoinFormProps) {
   const [loading, setLoading] = useState(false);
 
@@ -107,6 +121,93 @@ export default function CoinForm({
 
     status: "scheduled",
   });
+useEffect(() => {
+  if (!coin) return;
+
+  setForm({
+    name: coin.name || "",
+    symbol: coin.symbol || "",
+    slug: coin.slug || "",
+
+    logo: coin.logo || "",
+    description: coin.description || "",
+
+    salePrice: String(coin.salePrice ?? ""),
+    listingPrice: String(coin.listingPrice ?? ""),
+    currentPrice: String(coin.currentPrice ?? ""),
+
+    listingDate: coin.listingDate
+      ? new Date(coin.listingDate)
+          .toISOString()
+          .slice(0, 16)
+      : "",
+
+    network: coin.network || "",
+    contractAddress: coin.contractAddress || "",
+
+    marketCap: coin.marketCap || "",
+    circulatingSupply: coin.circulatingSupply || "",
+    maxSupply: coin.maxSupply || "",
+
+    website: coin.website || "",
+    whitepaper: coin.whitepaper || "",
+    twitter: coin.twitter || "",
+    telegram: coin.telegram || "",
+
+    featured: coin.featured ?? false,
+
+    allowReservation:
+      coin.allowReservation ?? true,
+
+    showCountdown:
+      coin.showCountdown ?? true,
+
+    displayDashboard:
+      coin.displayDashboard ?? true,
+
+    launchColor:
+      coin.launchColor || "#06B6D4",
+
+    priority: coin.priority ?? 0,
+
+    minPurchase: String(
+      coin.minPurchase ?? ""
+    ),
+
+    maxPurchase: String(
+      coin.maxPurchase ?? ""
+    ),
+
+    totalSupply: String(
+      coin.totalSupply ?? ""
+    ),
+
+    reservedSupply: String(
+      coin.reservedSupply ?? "0"
+    ),
+
+    reservationEnabled:
+      coin.reservationEnabled ?? true,
+
+    claimEnabled:
+      coin.claimEnabled ?? false,
+
+    reservationStart: coin.reservationStart
+      ? new Date(coin.reservationStart)
+          .toISOString()
+          .slice(0, 16)
+      : "",
+
+    reservationEnd: coin.reservationEnd
+      ? new Date(coin.reservationEnd)
+          .toISOString()
+          .slice(0, 16)
+      : "",
+
+    status:
+      coin.status || "scheduled",
+  });
+}, [coin]);
 
   function update(
     e: ChangeEvent<
@@ -132,8 +233,12 @@ export default function CoinForm({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin/upcoming-coins", {
-        method: "POST",
+  const res = await fetch(
+  isEditing
+    ? `/api/admin/upcoming-coins/${coin!._id}`
+    : "/api/admin/upcoming-coins",
+  {
+    method: isEditing ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -161,7 +266,11 @@ export default function CoinForm({
         return;
       }
 
-      alert("Launch created successfully.");
+      alert(
+  isEditing
+    ? "Listing updated successfully."
+    : "Launch created successfully."
+);
 
       onSuccess?.();
 

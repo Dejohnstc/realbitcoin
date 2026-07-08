@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import CoinListing from "@/models/CoinListing";
+import CoinReservation from "@/models/CoinReservation";
 
 export async function GET(
   req: NextRequest,
@@ -25,39 +26,56 @@ export async function GET(
         { status: 404 }
       );
     }
+const reservations = await CoinReservation.find({
+  coinId: coin._id,
+  status: "reserved",
+});
 
-    const totalSupply = coin.totalSupply || 0;
-    const reservedSupply = coin.reservedSupply || 0;
-    const salePrice = coin.salePrice || 0;
+const investors = reservations.length;
 
-    const remainingSupply = Math.max(
-      totalSupply - reservedSupply,
+const reservedSupply = reservations.reduce(
+  (total, reservation) =>
+    total + reservation.coinsPurchased,
+  0
+);
+
+const totalSupply = coin.totalSupply || 0;
+
+const remainingSupply = Math.max(
+  totalSupply - reservedSupply,
+  0
+);
+
+const soldPercentage =
+  totalSupply > 0
+    ? Number(
+        (
+          (reservedSupply / totalSupply) *
+          100
+        ).toFixed(4)
+      )
+    : 0;
+
+const raised = Number(
+  reservations
+    .reduce(
+      (total, reservation) =>
+        total + reservation.totalPaid,
       0
-    );
-
-    const soldPercentage =
-      totalSupply > 0
-        ? Number(
-            (
-              (reservedSupply / totalSupply) *
-              100
-            ).toFixed(2)
-          )
-        : 0;
-
-    const raised = Number(
-      (reservedSupply * salePrice).toFixed(2)
-    );
+    )
+    .toFixed(2)
+);
 
     return NextResponse.json({
       success: true,
       coin: {
-        ...coin,
-        remainingSupply,
-        soldPercentage,
-        raised,
-        investors: coin.reservations,
-      },
+  ...coin,
+  reservedSupply,
+  remainingSupply,
+  soldPercentage,
+  raised,
+  investors,
+},
     });
   } catch (error) {
     console.error(error);
