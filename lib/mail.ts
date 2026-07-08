@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-
+import { emailTemplate } from "./emailTemplate";
 const resend = new Resend(process.env.RESEND_API_KEY as string);
 
 const BASE_URL =
@@ -30,91 +30,64 @@ async function safeSend(payload: SendEmailPayload) {
 // =============================
 // ✅ SEND OTP EMAIL
 // =============================
-export const sendOTP = async (email: string, otp: string) => {
+export const sendOTP = async (
+  email: string,
+  otp: string
+) => {
   try {
     await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: [email],
-      subject: "Your  CoinlyBitora Verification Code",
+      subject: "Your CoinlyBitora Verification Code",
 
-      html: `
-      <div style="margin:0;padding:0;background:#0B0F19;font-family:Arial,Helvetica,sans-serif;">
-        
-        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-          <tr>
-            <td align="center">
+      html: emailTemplate({
+        title: "Verify Your Account",
 
-              <table width="420" cellpadding="0" cellspacing="0" style="background:#131A2A;border-radius:16px;padding:30px;color:white;">
-                
-                <!-- LOGO -->
-                <tr>
-                  <td align="center" style="padding-bottom:20px;">
-                    <h2 style="margin:0;color:#FFD700;"> CoinlyBitora</h2>
-                  </td>
-                </tr>
+        customerName: "Investor",
 
-                <!-- TITLE -->
-                <tr>
-                  <td align="center" style="padding-bottom:10px;">
-                    <h3 style="margin:0;">Verify Your Account</h3>
-                  </td>
-                </tr>
+        content: `
+          <p>
+            Thank you for choosing <strong>CoinlyBitora</strong>.
+          </p>
 
-                <!-- TEXT -->
-                <tr>
-                  <td align="center" style="padding:10px 0;color:#9CA3AF;font-size:14px;">
-                    Use the code below to complete your registration
-                  </td>
-                </tr>
+          <p>
+            Use the verification code below to complete your account registration.
+          </p>
 
-                <!-- OTP BOX -->
-                <tr>
-                  <td align="center" style="padding:20px 0;">
-                    <div style="
-                      background:#0B0F19;
-                      padding:15px 25px;
-                      border-radius:10px;
-                      font-size:28px;
-                      letter-spacing:6px;
-                      font-weight:bold;
-                      color:#FFD700;
-                      display:inline-block;
-                    ">
-                      ${otp}
-                    </div>
-                  </td>
-                </tr>
+          <div style="
+            margin:35px auto;
+            width:fit-content;
+            background:#111111;
+            border:2px solid #D4AF37;
+            border-radius:12px;
+            padding:18px 40px;
+            font-size:34px;
+            font-weight:bold;
+            letter-spacing:8px;
+            color:#D4AF37;
+          ">
+            ${otp}
+          </div>
 
-                <!-- INFO -->
-                <tr>
-                  <td align="center" style="color:#9CA3AF;font-size:13px;">
-                    This code will expire in 10 minutes
-                  </td>
-                </tr>
+          <p>
+            This verification code will expire in
+            <strong>10 minutes</strong>.
+          </p>
 
-                <!-- WARNING -->
-                <tr>
-                  <td align="center" style="padding-top:20px;color:#6B7280;font-size:12px;">
-                    If you didn’t request this, you can safely ignore this email
-                  </td>
-                </tr>
+          <p style="
+            color:#888;
+            font-size:13px;
+          ">
+            If you did not request this verification code,
+            you can safely ignore this email.
+          </p>
+        `,
 
-              </table>
+        buttonText: "Verify Account",
 
-              <!-- FOOTER -->
-              <div style="margin-top:20px;color:#6B7280;font-size:12px;">
-                © ${new Date().getFullYear()}  CoinlyBitora. All rights reserved.
-              </div>
-
-            </td>
-          </tr>
-        </table>
-
-      </div>
-      `,
+        buttonLink: `${BASE_URL}/auth/verify`,
+      }),
     });
-
-    
   } catch (error) {
     console.error("❌ OTP email error:", error);
   }
@@ -123,45 +96,75 @@ export const sendOTP = async (email: string, otp: string) => {
 // =============================
 // ✅ WELCOME EMAIL
 // =============================
-export async function sendWelcomeEmail(email: string): Promise<void> {
+export async function sendWelcomeEmail(
+  email: string
+): Promise<void> {
   try {
-    const response = await safeSend({
+    await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: [email],
-      subject: "Welcome to  CoinlyBitora 🚀",
-      html: `
-      <div style="font-family: Arial, sans-serif; background:#0B0F19; color:white; padding:20px;">
-        <div style="max-width:500px; margin:auto; background:#131A2A; padding:30px; border-radius:10px;">
-          
-          <h2 style="color:#f97316; text-align:center;">Welcome to  CoinlyBitora</h2>
+      subject: "Welcome to CoinlyBitora 🚀",
 
-          <p>Your account has been successfully verified 🎉</p>
+      html: emailTemplate({
+        title: "Welcome to CoinlyBitora",
 
-          <p style="color:#ccc;">
-            Start investing today with our flexible plans.
+        customerName: "Investor",
+
+        content: `
+          <p>
+            Congratulations! Your account has been
+            successfully verified.
           </p>
 
-          <div style="text-align:center; margin-top:25px;">
-            <a href="${BASE_URL}/auth/login"
-   style="background:#f97316; color:white; padding:10px 20px; text-decoration:none; border-radius:5px;">
-   Login & Start Investing
-</a>
+          <p>
+            Welcome to <strong>CoinlyBitora</strong>,
+            your trusted digital asset trading and
+            investment platform.
+          </p>
 
-            <p style="font-size:13px; color:#aaa; text-align:center; margin-top:20px;">
-              Explore our investment plans and start trading today.
-            </p>
+          <p>
+            You now have full access to your dashboard,
+            where you can:
+          </p>
+
+          <ul style="
+            margin:20px 0;
+            padding-left:22px;
+            line-height:30px;
+            color:#555;
+          ">
+            <li>Trade digital assets</li>
+            <li>Invest in premium plans</li>
+            <li>Manage your crypto portfolio</li>
+            <li>Deposit and withdraw securely</li>
+          </ul>
+
+          <p>
+            We're excited to have you join thousands of
+            investors building their financial future with
+            CoinlyBitora.
+          </p>
+
+          <div style="
+            margin-top:30px;
+            padding:18px;
+            border-radius:10px;
+            background:#f8fafc;
+            border-left:4px solid #D4AF37;
+            color:#555;
+          ">
+            <strong>Getting Started</strong><br><br>
+
+            Complete your first deposit to begin investing
+            and unlock all platform features.
           </div>
+        `,
 
-          <p style="font-size:12px; color:#666; margin-top:30px; text-align:center;">
-             CoinlyBitora © 2026
-          </p>
+        buttonText: "Open Dashboard",
 
-        </div>
-      </div>
-      `,
+        buttonLink: `${BASE_URL}/dashboard`,
+      }),
     });
-
-    
   } catch (error) {
     console.error("❌ Welcome email FAILED:", error);
   }
@@ -175,116 +178,93 @@ export async function sendDepositEmail(
   amount: number
 ): Promise<void> {
   try {
-    const response = await safeSend({
+    await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: [email],
       subject: "Deposit Approved ✅",
 
-      html: `
-      <div style="margin:0;padding:0;background:#0B0F19;font-family:Arial,Helvetica,sans-serif;">
-        
-        <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
-          <tr>
-            <td align="center">
+      html: emailTemplate({
+        title: "Deposit Approved",
 
-              <table width="420" cellpadding="0" cellspacing="0" style="background:#131A2A;border-radius:16px;padding:30px;color:white;">
-                
-                <!-- LOGO -->
-                <tr>
-                  <td align="center" style="padding-bottom:20px;">
-                    <h2 style="margin:0;color:#FFD700;"> CoinlyBitora</h2>
-                  </td>
-                </tr>
+        customerName: "Investor",
 
-                <!-- TITLE -->
-                <tr>
-                  <td align="center" style="padding-bottom:10px;">
-                    <h3 style="margin:0;color:#22c55e;">Deposit Successful</h3>
-                  </td>
-                </tr>
+        content: `
+          <p>
+            Great news! Your recent deposit has been
+            successfully approved and credited to your
+            CoinlyBitora account.
+          </p>
 
-                <!-- MESSAGE -->
-                <tr>
-                  <td align="center" style="padding:10px 0;color:#9CA3AF;font-size:14px;">
-                    Your deposit has been successfully approved
-                  </td>
-                </tr>
+          <div style="
+            margin:35px auto;
+            max-width:320px;
+            background:#f8fafc;
+            border:2px solid #22c55e;
+            border-radius:14px;
+            padding:24px;
+            text-align:center;
+          ">
 
-                <!-- AMOUNT BOX -->
-                <tr>
-                  <td align="center" style="padding:20px 0;">
-                    <div style="
-                      background:#0B0F19;
-                      padding:18px 28px;
-                      border-radius:12px;
-                      font-size:32px;
-                      font-weight:bold;
-                      color:#22c55e;
-                      display:inline-block;
-                      letter-spacing:1px;
-                    ">
-                      $${amount.toLocaleString()}
-                    </div>
-                  </td>
-                </tr>
+            <div style="
+              font-size:13px;
+              color:#777;
+              margin-bottom:10px;
+            ">
+              Deposit Amount
+            </div>
 
-                <!-- INFO -->
-                <tr>
-                  <td align="center" style="color:#9CA3AF;font-size:14px;">
-                    Your account balance has been updated.<br/>
-                    You can now start trading or investing.
-                  </td>
-                </tr>
+            <div style="
+              font-size:34px;
+              font-weight:700;
+              color:#16a34a;
+            ">
+              $${amount.toLocaleString()}
+            </div>
 
-                <!-- CTA BUTTON -->
-                <tr>
-                  <td align="center" style="padding-top:30px;">
-                     <a href="${BASE_URL}/auth/login"
-                       style="
-                         background:linear-gradient(90deg,#22c55e,#16a34a);
-                         color:black;
-                         padding:14px 28px;
-                         text-decoration:none;
-                         border-radius:999px;
-                         font-weight:bold;
-                         font-size:14px;
-                         display:inline-block;
-                         box-shadow:0 5px 20px rgba(34,197,94,0.4);
-                       ">
-                      Login & Go To Dashboard →
-                    </a>
-                  </td>
-                </tr>
+          </div>
 
-                <!-- FOOTER -->
-                <tr>
-                  <td align="center" style="padding-top:25px;color:#6B7280;font-size:12px;">
-                    If you did not initiate this deposit, contact support immediately.
-                  </td>
-                </tr>
+          <p>
+            Your account balance has been updated and the
+            funds are now available for trading,
+            investing, or purchasing digital assets.
+          </p>
 
-              </table>
+          <div style="
+            margin-top:30px;
+            padding:18px;
+            border-radius:10px;
+            background:#ECFDF5;
+            border-left:4px solid #22c55e;
+            color:#166534;
+          ">
+            <strong>Deposit Status</strong><br><br>
 
-              <!-- COPYRIGHT -->
-              <div style="margin-top:20px;color:#6B7280;font-size:12px;">
-                © ${new Date().getFullYear()}  CoinlyBitora. All rights reserved.
-              </div>
+            ✔ Funds Successfully Credited<br>
+            ✔ Ready for Trading<br>
+            ✔ Available Immediately
+          </div>
 
-            </td>
-          </tr>
-        </table>
+          <p style="
+            margin-top:30px;
+            color:#777;
+            font-size:13px;
+          ">
+            If you did not authorize this deposit,
+            please contact our support team immediately.
+          </p>
+        `,
 
-      </div>
-      `,
+        buttonText: "Open Dashboard",
+
+        buttonLink: `${BASE_URL}/dashboard`,
+      }),
     });
-
-    
   } catch (error) {
     console.error("❌ Deposit email FAILED:", error);
   }
 }
 
-// =============================
+/// =============================
 // ✅ WITHDRAW APPROVED EMAIL
 // =============================
 export async function sendWithdrawEmail(
@@ -295,115 +275,142 @@ export async function sendWithdrawEmail(
   accountName?: string,
   bankName?: string,
   accountNumber?: string
-): Promise<void>{
+): Promise<void> {
   try {
-    const response = await safeSend({
+    await safeSend({
       from: "CoinlyBitora <noreply@obiresoffice.com>",
       to: [email],
       subject: "Withdrawal Approved 💸",
-      html: `
-      <div style="margin:0;padding:0;background:#0B0F19;font-family:Arial,Helvetica,sans-serif;">
-        <div style="max-width:600px;margin:auto;background:#131A2A;border-radius:12px;padding:30px;color:white;">
 
-          <div style="text-align:center;margin-bottom:25px;">
-            <h1 style="margin:0;color:#facc15;">CoinlyBitora</h1>
-            <p style="color:#9ca3af;margin-top:5px;">Withdrawal Processing Notice</p>
-          </div>
+      html: emailTemplate({
+        title: "Withdrawal Approved",
 
-          <h2 style="text-align:center;color:#22c55e;margin:0 0 15px;">✅ Withdrawal Approved</h2>
+        customerName: accountName || "Investor",
 
-          <p style="color:#d1d5db;font-size:15px;text-align:center;">
-            Your withdrawal request has been approved and is currently being processed.
+        content: `
+          <p>
+            Your withdrawal request has been successfully approved
+            and is now being processed.
           </p>
 
-          <div style="background:#0B0F19;padding:20px;border-radius:10px;margin:20px 0;">
-            <table style="width:100%;border-collapse:collapse;color:white;font-size:14px;">
+          <div style="
+            margin:35px auto;
+            background:#f8fafc;
+            border:1px solid #e5e7eb;
+            border-radius:14px;
+            overflow:hidden;
+          ">
+
+            <table
+              width="100%"
+              cellpadding="14"
+              cellspacing="0"
+              style="font-size:15px;color:#444;">
+
               <tr>
-                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Amount</td>
-                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;font-weight:bold;color:#facc15;">
-                  $${amount.toLocaleString()}
+                <td style="font-weight:bold;">Amount</td>
+                <td align="right">
+                  <strong style="color:#16a34a;font-size:20px;">
+                    $${amount.toLocaleString()}
+                  </strong>
                 </td>
               </tr>
+
               <tr>
-                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Transaction ID</td>
-                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;font-family:monospace;font-size:13px;word-break:break-all;">
+                <td style="font-weight:bold;">Method</td>
+                <td align="right">${method}</td>
+              </tr>
+
+              <tr>
+                <td style="font-weight:bold;">Account Holder</td>
+                <td align="right">${accountName || "N/A"}</td>
+              </tr>
+
+              <tr>
+                <td style="font-weight:bold;">Bank</td>
+                <td align="right">${bankName || "N/A"}</td>
+              </tr>
+
+              <tr>
+                <td style="font-weight:bold;">Account</td>
+                <td align="right">
+                  ${
+                    accountNumber
+                      ? "****" + accountNumber.slice(-4)
+                      : "N/A"
+                  }
+                </td>
+              </tr>
+
+              <tr>
+                <td style="font-weight:bold;">Status</td>
+                <td align="right">
+                  <span style="
+                    color:#16a34a;
+                    font-weight:bold;
+                  ">
+                    Processing
+                  </span>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="font-weight:bold;">Reference</td>
+                <td align="right"
+                  style="font-family:monospace;">
                   ${transactionId}
                 </td>
               </tr>
+
               <tr>
-                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Method</td>
-                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">${method}</td>
+                <td style="font-weight:bold;">Date</td>
+                <td align="right">
+                  ${new Date().toLocaleString()}
+                </td>
               </tr>
-              <tr>
-  <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">
-    Account Holder
-  </td>
 
-  <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">
-    ${accountName || "N/A"}
-  </td>
-</tr>
-
-<tr>
-  <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">
-    Bank Name
-  </td>
-
-  <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">
-    ${bankName || "N/A"}
-  </td>
-</tr>
-
-<tr>
-  <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">
-    Account Number
-  </td>
-
-  <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;font-family:monospace;">
-    ${
-      accountNumber
-        ? "****" + accountNumber.slice(-4)
-        : "N/A"
-    }
-  </td>
-</tr>
-              <tr>
-                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Status</td>
-                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;color:#22c55e;">Processing</td>
-              </tr>
-              <tr>
-                <td style="padding:10px 0;color:#9ca3af;width:42%;vertical-align:top;">Date</td>
-                <td style="padding:10px 0;text-align:right;width:58%;vertical-align:top;">${new Date().toLocaleString()}</td>
-              </tr>
             </table>
+
           </div>
 
-          <div style="background:#052e16;border:1px solid #166534;padding:15px;border-radius:10px;margin-bottom:20px;">
-            <p style="margin:0;color:#bbf7d0;font-size:14px;">
-              Your funds are being transferred through the selected withdrawal method and may take between 1–24 hours to arrive depending on processing requirements.
-            </p>
+          <div style="
+            margin-top:30px;
+            padding:18px;
+            border-radius:10px;
+            background:#ECFDF5;
+            border-left:4px solid #22c55e;
+            color:#166534;
+          ">
+
+            <strong>Processing Information</strong>
+
+            <br><br>
+
+            Your withdrawal has entered our payment queue
+            and is expected to arrive within
+            <strong>1–24 hours</strong>,
+            depending on your selected payment method and
+            banking network.
+
           </div>
 
-          <div style="text-align:center;margin-top:25px;">
-            <a href="${BASE_URL}/dashboard"
-              style="display:inline-block;background:#facc15;color:black;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;">
-              View Dashboard
-            </a>
-          </div>
+          <p style="
+            margin-top:30px;
+            color:#777;
+            font-size:13px;
+          ">
 
-          <hr style="margin:30px 0;border-color:#1f2937;" />
+            If you did not request this withdrawal,
+            please contact our support team immediately.
 
-          <p style="text-align:center;color:#6b7280;font-size:12px;">
-            CoinlyBitora Trading Platform<br/>
-            Transaction Reference: ${transactionId}
           </p>
+        `,
 
-        </div>
-      </div>
-      `,
+        buttonText: "View Dashboard",
+
+        buttonLink: `${BASE_URL}/dashboard`,
+      }),
     });
-
-   
   } catch (error) {
     console.error("❌ Withdraw email FAILED:", {
       email,
