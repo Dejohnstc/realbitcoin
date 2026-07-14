@@ -131,9 +131,9 @@ function Stat({
         {title}
       </p>
 
-      <p className="mt-3 text-2xl font-bold text-cyan-400">
-        {value}
-      </p>
+      <p className="mt-3 text-xl sm:text-2xl font-bold text-cyan-400 break-words leading-tight">
+  {value}
+</p>
 
     </div>
   );

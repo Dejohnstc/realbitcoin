@@ -43,15 +43,16 @@ export async function GET(
     }
 
     const reservations = (await CoinReservation.find({
-      coinId: coin._id,
-      status: "reserved",
-    })
-      .populate("userId", "name")
-      .sort({
-        createdAt: -1,
-      })
-      .limit(10)
-      .lean()) as ReservationResult[];
+  coinId: coin._id,
+  status: "reserved",
+})
+  .populate("userId", "name")
+  .sort({
+    totalPaid: -1,
+    createdAt: -1,
+  })
+  .limit(5)
+  .lean()) as ReservationResult[];
 
     const recent = reservations.map((item) => {
       let displayName = "Anonymous";

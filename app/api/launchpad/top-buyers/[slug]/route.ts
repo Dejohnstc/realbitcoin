@@ -40,16 +40,17 @@ export async function GET(
       );
     }
 
-    const buyers = (await CoinReservation.find({
-      coinId: coin._id,
-      status: "reserved",
-    })
-      .populate("userId", "name")
-      .sort({
-        totalPaid: -1,
-      })
-      .limit(10)
-      .lean()) as BuyerResult[];
+   const buyers = (await CoinReservation.find({
+  coinId: coin._id,
+  status: "reserved",
+})
+  .populate("userId", "name")
+  .sort({
+    totalPaid: -1,
+    createdAt: -1,
+  })
+  .limit(5)
+  .lean()) as BuyerResult[];
 
     return NextResponse.json({
       success: true,
