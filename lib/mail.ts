@@ -36,7 +36,7 @@ export const sendOTP = async (
 ) => {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Your CoinlyBitora Verification Code",
 
@@ -101,7 +101,7 @@ export async function sendWelcomeEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Welcome to CoinlyBitora 🚀",
 
@@ -179,7 +179,7 @@ export async function sendDepositReceivedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Deposit Received ⏳",
 
@@ -248,7 +248,7 @@ export async function sendDepositEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Deposit Approved ✅",
 
@@ -343,7 +343,7 @@ export async function sendWithdrawalRejectedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Withdrawal Request Received",
 
@@ -413,7 +413,7 @@ export async function sendWithdrawEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Withdrawal Approved 💸",
 
@@ -566,7 +566,7 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Reset Your CoinlyBitora Password 🔐",
 
@@ -633,7 +633,7 @@ export async function sendPasswordChangedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Password Successfully Updated 🔐",
 
@@ -697,7 +697,7 @@ export async function sendLoginAlertEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "New Login Detected 🔒",
 
@@ -775,7 +775,7 @@ export async function sendInvestmentStartedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Investment Confirmed 📈",
 
@@ -833,7 +833,7 @@ export async function sendInvestmentCompletedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Investment Completed 🎉",
 
@@ -903,7 +903,7 @@ export async function sendKYCApprovedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Identity Verification Approved ✅",
 
@@ -954,7 +954,7 @@ export async function sendKYCRejectedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora <noreply@obiresoffice.com>",
+      from: "CoinlyBitora <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Identity Verification Update",
 
@@ -1011,7 +1011,7 @@ export async function sendSupportReplyEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora Support <support@obiresoffice.com>",
+      from: "CoinlyBitora Support <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Support Response",
 
@@ -1062,7 +1062,7 @@ export async function sendAccountLockedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora Security <security@obiresoffice.com>",
+      from: "CoinlyBitora Security <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Account Temporarily Locked",
 
@@ -1114,7 +1114,7 @@ export async function sendEmailChangedEmail(
 ): Promise<void> {
   try {
     await safeSend({
-      from: "CoinlyBitora Security <security@obiresoffice.com>",
+      from: "CoinlyBitora Security <noreply@alexsobeiski.com>",
       to: [email],
       subject: "Email Address Updated",
 

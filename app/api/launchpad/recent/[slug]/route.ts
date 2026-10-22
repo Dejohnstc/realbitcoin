@@ -48,7 +48,6 @@ export async function GET(
 })
   .populate("userId", "name")
   .sort({
-    totalPaid: -1,
     createdAt: -1,
   })
   .limit(5)
